@@ -555,7 +555,7 @@ class timer {
 
 	}
 	start() {
-		if (!this.paused) {
+		if (this.paused) {
 			this.running = true;
 			this.startTime = performance.now() / 1000;
 		} else {
@@ -995,6 +995,7 @@ class camera {
 		this.y = 0;
 		this.width = canvas.width;
 		this.height = canvas.height;
+		this.aabb = new classicAABB(this.x-this.width*0.5, this.y-this.height*0.5, this.x+this.width*0.5, this.y+this.height*0.5)
 		this.inWorldBounds = {
 			x: this.x,
 			y: this.y,
@@ -1104,6 +1105,14 @@ class camera {
 			},
 			costumFrame() { }
 		}
+	}
+
+	getAABB(){
+		this.aabb.min.x = this.x - this.width * 0.5
+		this.aabb.max.x = this.x + this.width * 0.5
+		this.aabb.min.y = this.y - this.height * 0.5
+		this.aabb.max.y = this.y + this.height * 0.5
+		return this.aabb
 	}
 
 	setZoom(zoom) {

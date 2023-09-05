@@ -31,9 +31,14 @@ class Lvector2D {
         }
         console.error("vector is being divided by an unsusual variable: " + number)
     }
-
     length() {
         return Math.sqrt(this.x ** 2 + this.y ** 2)
+    }
+    magnitude(){
+        return this.length()
+    }
+    magnitudeSqr(){
+        return (this.x ** 2 + this.y ** 2)
     }
     normalize(sourceVector = originVector) {
         let mag = dist2D(this, sourceVector);

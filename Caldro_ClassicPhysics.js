@@ -35,6 +35,11 @@ class classicPhysicsWorld {
         // this.collisionManifolds = new Array();
         this.contactPairs = new Array();
         this.contactPointsList = new Array();
+        this.contactPointsList.addContactPoint = (point) => {
+            if (!this.contactPointsList.includes(point)) {
+                this.contactPointsList.push(point)
+            }
+        }
 
         this.simulateUniversalGravity = false
         this.time = {
@@ -47,14 +52,88 @@ class classicPhysicsWorld {
             impulseList: new Array(2),
             raList: new Array(2),
             rbList: new Array(2),
-            frictionImpulseList: new Array(2),
-            JList: new Array(2),
+        }
+
+        this.collisionTracking = {
+            collisionsList: {},
+            IDseperator: "__/__",
+            createCollisionTracker(bodyA, bodyB, manifoldA, manifoldB) {
+                let IDseperator = this.IDseperator
+                let info = {
+                    ID: bodyA.ID + IDseperator + bodyB.ID,
+                    bodyA: bodyA,
+                    bodyB: bodyB,
+                    manifoldA: manifoldA,
+                    manifoldB: manifoldB,
+                    timeInContact: 0,
+                    startTime: -Infinity,
+                    isNewCollision: true,
+                    inCollision: false,
+                    updated: false,
+                    handleEndEvent: false,
+                    handleStart_ContinueEvent: true,
+                    invalid: false,
+                }
+                this.collisionsList[info.ID] = info
+                return info
+            },
+            deleteBodyTrackers(body) {
+                let implicatedTrackerIDs = this.findFor(body)
+                for (let tracker of implicatedTrackerIDs) {
+                    delete this.collisionsList[tracker.ID];
+                }
+                implicatedTrackerIDs = undefined;
+            },
+            deleteCollisionTracker(bodyA, bodyB) {
+                let info = this.checkFor(bodyA, bodyB)
+                if (!info) {
+                    return false
+                } else {
+                    return delete this.collisionsList[info.ID]
+                }
+            },
+            checkFor(bodyA, bodyB) {
+                let info = this.collisionsList[bodyA.ID + this.IDseperator + bodyB.ID];
+                if (info) {
+                    return info;
+                } else {
+                    info = this.collisionsList[bodyB.ID + this.IDseperator + bodyA.ID];
+                    if (info) {
+                        return info;
+                    }
+                }
+                return false;
+            },
+            findFor(body) {
+                let trackers = new Array();
+                for (let trackerID in this.collisionsList) {
+                    if (trackerID.includes(body.ID)) {
+                        trackers.push(this.collisionsList[trackerID])
+                    }
+                }
+                return trackers;
+            },
+            updateTracker(bodyA, bodyB, deltatime, manifoldA, manifoldB) {
+                let info = this.checkFor(bodyA, bodyB)
+                if (!info) {
+                    info = this.createCollisionTracker(bodyA, bodyB, manifoldA, manifoldB)
+                    info.startTime = Caldro.time.elapsedTime;
+                } else {
+                    // info.isNewCollision = false;
+                    // info.inCollision = false;
+                    this.manifoldA = this.manifoldB = undefined;
+                    this.manifoldA = manifoldA;
+                    this.manifoldB = manifoldB;
+                    info.handleStart_ContinueEvent = true;
+                    info.timeInContact += deltatime;
+                }
+                return info;
+            }
         }
     }
     containsBody(body) {
         return this.bodies.includes(body);
     }
-    onAddBody(body){}
     addBody(body) {
         if (this.bodies.includes(body)) {
             console.error("Physics Engine Error: Cannot add a body to a world if that world already contains that body")
@@ -62,30 +141,24 @@ class classicPhysicsWorld {
         }
         body.lifetime = 0;
         this.bodies.push(body)
-        world.onAddBody(body)
-        body.onAdd(this);
+        body.onAdd();
     }
-    addJoint(joint){
+    addJoint(joint) {
         this.joints.push(joint);
     }
-    removeAllBodies(fireOnRemoveEvents = false) {
-        if(fireOnRemoveEvents){
-            for(let i = this.bodies.length-1; i > -1; --i){
-                this.bodies[i].onRemove();
-                this.bodies.splice(i, 1)
-            }
-            return
-        }
+    removeAllBodies() {
         this.bodies.length = 0;
     }
     removeBody(body) {
         let found = false
+        let physicsWorld = this
         if (typeof body == "function") {
             this.bodies = this.bodies.filter(function (object) {
                 if (!body(object)) {
                     return true
                 }
                 found = true
+                physicsWorld.collisionTracking.deleteBodyTrackers(body)
                 object.onRemove();
                 return false;
             })
@@ -101,13 +174,15 @@ class classicPhysicsWorld {
                 return true
             }
             found = true
-            object.onRemove(this);
+            physicsWorld.collisionTracking.deleteBodyTrackers(body)
+            object.onRemove();
             return false;
         })
         return found
     }
     removeBodiesWithTag(tag, strict) {
         let found = false
+        let physicsWorld = this
         this.bodies = this.bodies.filter(function (object) {
             if (strict) {
                 if (object.tag != tag) {
@@ -118,8 +193,10 @@ class classicPhysicsWorld {
                     return true
                 }
             }
-            found = true
-            object.onRemove(this);
+            found = true;
+
+            physicsWorld.collisionTracking.deleteBodyTrackers(body)
+            object.onRemove();
             return false;
         })
         return found
@@ -179,29 +256,50 @@ class classicPhysicsWorld {
     step(deltatime, iterations = 1) {
         if (this.isPaused) return;
         iterations = clip(iterations, classicPhysicsWorld.minIterations, classicPhysicsWorld.maxIterations)
-        // iterations = 1
         deltatime /= iterations;
         deltatime *= this.time.speedMultiplier;
 
         this.contactPointsList.length = 0;
 
-        for (let repetitions = 0; repetitions < iterations; ++repetitions) {
+        // for(let trackerID in this.collisionTracking.collisionsList){
+        // let tracker = this.collisionTracking.collisionsList[trackerID]
+        // }
+
+        for (let substep = 0; substep < iterations; ++substep) {
             this.contactPairs.length = 0;
+            this.stepBodies(deltatime, substep, iterations);
             this.stepJoints(deltatime)
-            this.stepBodies(deltatime, repetitions, iterations);
-            this.BroadPhase();
-            this.NarrowPhase(deltatime, repetitions == iterations - 1);
+            this.BroadPhase(deltatime, substep, iterations);
+            this.NarrowPhase(deltatime, substep, iterations);
         }
+
+        for (let trackerID in this.collisionTracking.collisionsList) {
+            let tracker = this.collisionTracking.collisionsList[trackerID]
+            if (!tracker.updated) {
+                if (tracker.handleEndEvent) {
+                    tracker.inCollision = false
+                    let bodyA = tracker.bodyA;
+                    let bodyB = tracker.bodyB;
+                    bodyA.onCollisionEnd(bodyB, tracker.manifoldA)
+                    bodyB.onCollisionEnd(bodyA, tracker.manifoldB)
+                    tracker.isNewCollision = true;
+                    tracker.handleEndEvent = false;
+                }
+            }
+            // doesn't matter if it was or not, it will be set to false again, for the next frame
+            tracker.updated = false // however this will be able to be checked and found true or not in any of the collision events
+        }
+        // console.log(iterations)
     }
 
-    BroadPhase() {
+    BroadPhase(deltatime, substep, iterations) {
         for (let i = 0; i < this.bodies.length - 1; ++i) {
             let bodyA = this.bodies[i]
             for (let j = i + 1; j < this.bodies.length; ++j) {
                 let bodyB = this.bodies[j]
                 if (!(bodyA.collidable && bodyB.collidable)) continue;
 
-                if (this.simulateUniversalGravity) {
+                if (this.simulateUniversalGravity && substep == 0) {
                     let distance = vecMath.distance(bodyA.position, bodyB.position)
                     let gravityConstant = classicPhysicsWorld.gravitationalConstant
                     let attraction = (gravityConstant * bodyA.mass * bodyB.mass) / distance ** 2;
@@ -211,65 +309,91 @@ class classicPhysicsWorld {
                     bodyB.addForce(force)
                 }
 
-                let userInfo1 = bodyA.preCollision(bodyB)
-                let userInfo2 = bodyB.preCollision(bodyA)
-                if (userInfo1 === Collisions.GHOST || userInfo2 === Collisions.GHOST) continue;
+                let userInfoA = bodyA.preCollision(bodyB)
+                let userInfoB = bodyB.preCollision(bodyA)
+                if (userInfoA === Collisions.GHOST || userInfoB === Collisions.GHOST) continue;
                 if (!Collisions.intersectAANN(bodyA.getAABB(), bodyB.getAABB())) continue;
-                this.contactPairs.push(classicPhysicsWorld.contactPair(i, j))
+                this.contactPairs.push(classicPhysicsWorld.contactPair(i, j)) // indexes of bodies to check for possible collision
                 // this.contactPairs.push([1, j])
             }
 
         }
     }
 
-    NarrowPhase(deltatime, saveContactPoints) {
+    NarrowPhase(deltatime, substep, iterations) {
+        // let handledEventsForCurrentItteration = false;
         for (let i = 0; i < this.contactPairs.length; ++i) {
             let contactPair = this.contactPairs[i]
             let bodyA = this.bodies[contactPair.index1]
             let bodyB = this.bodies[contactPair.index2]
-            if(!(bodyA && bodyB)) continue;
+            if (!(bodyA && bodyB)) continue;
 
-            let collisionInformation
+            let collisionInformation = false
             try {
                 collisionInformation = Collisions.Collide(bodyA, bodyB)
             } catch (error) {
                 console.log("Caugth the error")
                 console.error(error)
-                console.log(contactPair, "Array Length: "+this.bodies.length)
+                console.log(contactPair, "Array Length: " + this.bodies.length)
                 console.log(bodyA, bodyB)
             }
             if (collisionInformation) {
-                let userInfo1 = bodyA.onCollisionEnter(collisionInformation, bodyB)
-                let userInfo2 = bodyB.onCollisionEnter(collisionInformation, bodyA)
-                if (userInfo1 === Collisions.GHOST || userInfo2 === Collisions.GHOST) continue;
                 bodyA.inCollision = true
                 bodyB.inCollision = true
-                if (bodyA.isTrigger || bodyB.isTrigger) continue;
-                if (bodyA.isStatic && bodyB.isStatic) continue;
-
 
                 let normal = collisionInformation.normal;
                 let depth = collisionInformation.depth;
                 let minimumTranslationVector = vecMath.multiply(normal, depth)
-                this.seperateBodies(bodyA, bodyB, minimumTranslationVector)
 
                 let contactInformation = Collisions.findContactPoints(bodyA, bodyB)
-                let manifold = new CollisionManifold(bodyA, bodyB, normal, depth,
+                let manifoldA = new CollisionManifold(bodyA, bodyB, normal, depth,
                     contactInformation.contactPoint1, contactInformation.contactPoint2,
                     contactInformation.contactPointCount)
-                // this.collisionManifolds.push(manifold);
+                let manifoldB = new CollisionManifold(bodyB, bodyA, vecMath.invert(normal), depth,
+                    contactInformation.contactPoint2, contactInformation.contactPoint1,
+                    contactInformation.contactPointCount)
+                // this.collisionManifolds.push(manifoldA);
 
-                // this.resolveCollisionBasic(manifold)
-                // this.resolveCollisionWithRotation(manifold)
-                this.resolveCollisionWithRotationAndFriction(manifold)
+                let userInfoA;
+                let userInfoB;
+                let collisionTracker = this.collisionTracking.updateTracker(bodyA, bodyB, deltatime, manifoldA, manifoldB)
+                if (collisionTracker.handleStart_ContinueEvent) {
+                    collisionTracker.inCollision = true;
+                    collisionTracker.updated = true;
 
-
-                if (saveContactPoints) {
-                    this.contactPointsList.push(manifold.contactPoint1)
-                    if (manifold.contactPointCount > 1) {
-                        this.contactPointsList.push(manifold.contactPoint2)
+                    manifoldA.relativeVelocity = vecMath.subtract(bodyA.linearVelocity, bodyB.linearVelocity)
+                    manifoldB.relativeVelocity = vecMath.invert(manifoldA.relativeVelocity)
+                    
+                    // !===TO DO====! deltatime passed to this funciont is wrong, or at leat will be wrong if the epoch of the world step is greater than 1
+                    if (collisionTracker.isNewCollision) {
+                        userInfoA = bodyA.onCollisionStart(bodyB, manifoldA)
+                        userInfoB = bodyB.onCollisionStart(bodyA, manifoldB)
+                        collisionTracker.isNewCollision = false;
+                    } else {
+                        userInfoA = bodyA.onCollisionContinue(bodyB, manifoldA)
+                        userInfoB = bodyB.onCollisionContinue(bodyA, manifoldB)
                     }
+                    collisionTracker.handleStart_ContinueEvent = false //tihs only exsists to make either event happen once per world stepp, dw about it
+                    collisionTracker.handleEndEvent = true;
                 }
+
+                this.contactPointsList.addContactPoint(manifoldA.contactPoint1)
+                if (manifoldA.contactPointCount > 1) {
+                    this.contactPointsList.addContactPoint(manifoldA.contactPoint1)
+                }
+
+
+                if (bodyA.isTrigger || bodyB.isTrigger) continue;
+                if (bodyA.isStatic && bodyB.isStatic) continue;
+                if ((userInfoA === Collisions.GHOST || userInfoB === Collisions.GHOST)) continue
+                this.seperateBodies(bodyA, bodyB, minimumTranslationVector)
+                // this.resolveCollisionBasic(manifoldA)
+                this.resolveCollisionWithRotation(manifoldA)
+
+                bodyA.applyFriction(bodyB.dynamicFriction, deltatime)
+                bodyB.applyFriction(bodyA.dynamicFriction, deltatime)
+            } else {
+                // gaonna still have to handle stuff here somehow
             }
 
         }
@@ -280,11 +404,12 @@ class classicPhysicsWorld {
             let body = this.bodies[i]
             body.inCollision = false
             body.step(deltatime, this.gravity, repetitions === (iterations - 1))
+            // body.applyFriction(body.staticFriction, deltatime)
         }
     }
 
-    stepJoints(deltatime){
-        for(let i = 0; i < this.joints.length; ++i){
+    stepJoints(deltatime) {
+        for (let i = 0; i < this.joints.length; ++i) {
             this.joints[i].step(deltatime)
         }
     }
@@ -332,15 +457,14 @@ class classicPhysicsWorld {
         let impulseList = this.resolveCollisionWithRotationLists.impulseList;
         let raList = this.resolveCollisionWithRotationLists.raList;
         let rbList = this.resolveCollisionWithRotationLists.rbList;
-        
+
         contactPointList[0] = contactPoint1
         contactPointList[1] = contactPoint2
-        // console.log(contactPointList)
 
         impulseList.length = 0;
         raList.length = 0;
         rbList.length = 0;
-        
+
         let e = Math.min(bodyA.restitution, bodyB.restitution);
         for (let i = 0; i < contactPointCount; ++i) {
             let ra = vecMath.subtract(contactPointList[i], bodyA.position)
@@ -365,7 +489,6 @@ class classicPhysicsWorld {
 
             let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
             if (contactVelocityMagnitude > 0) {
-
                 continue;
             }
 
@@ -373,230 +496,79 @@ class classicPhysicsWorld {
             let rbPerpDotNormal = vecMath.dot(rbPerp, normal)
 
             let denom = ((bodyA.invMass + bodyB.invMass)) +
-             ((raPerpDotNormal ** 2) * bodyA.invInertia) + 
-             ((rbPerpDotNormal ** 2) * bodyB.invInertia);
-             
-             let j = -(1 + e) * contactVelocityMagnitude;
-             j /= denom;
-             j /= contactPointCount
+                ((raPerpDotNormal ** 2) * bodyA.invInertia) +
+                ((rbPerpDotNormal ** 2) * bodyB.invInertia);
+
+            let j = -(1 + e) * contactVelocityMagnitude;
+            j /= denom;
+            j /= contactPointCount
 
             let impulse = vecMath.multiply(normal, j)
             impulseList[i] = impulse
         }
 
-        
-        for(let i = 0; i < contactPointCount; ++i){
-            let impulse = impulseList[i]
-            if(!impulse) continue
-            let ra = raList[i]
-            let rb = rbList[i]
+        let forceA = new Lvector2D(0, 0);
+        let forceB = new Lvector2D(0, 0);
 
-            if (!bodyA.isStatic) {
-                bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, vecMath.multiply(vecMath.invert(impulse), bodyA.invMass))
-                bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, impulse) * bodyA.invInertia)
-            }
-            if (!bodyB.isStatic) {
-                bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, vecMath.multiply(impulse, bodyB.invMass))
-                bodyB.angularVelocity += radToDeg(vecMath.croos(rb, impulse) * bodyB.invInertia)
-            }
-        }
-    }
-
-    resolveCollisionWithRotationAndFriction(manifold) {
-        let { bodyA, bodyB, normal, contactPoint1, contactPoint2, contactPointCount } = manifold;
-
-        let { contactPointList, impulseList, frictionImpulseList, raList, rbList, JList} = this.resolveCollisionWithRotationLists
-        
-        contactPointList[0] = contactPoint1
-        contactPointList[1] = contactPoint2
-
-        impulseList.length = 0;
-        raList.length = 0;
-        rbList.length = 0;
-        frictionImpulseList.length = 0;
-        JList.length = 0;
-        
-        let e = Math.min(bodyA.restitution, bodyB.restitution);
-        let sFc = (bodyA.staticFriction + bodyB.staticFriction) / 2;
-        let dFc = (bodyA.dynamicFriction + bodyB.dynamicFriction) / 2;
-
-
-        // collision impulses
         for (let i = 0; i < contactPointCount; ++i) {
-            let ra = vecMath.subtract(contactPointList[i], bodyA.position)
-            let rb = vecMath.subtract(contactPointList[i], bodyB.position)
-
-            raList[i] = ra
-            rbList[i] = rb
-
-            let raPerp = vecMath.normal(ra)
-            let rbPerp = vecMath.normal(rb)
-
-            let angularVelocityRadiansA = degToRad(bodyA.angularVelocity)
-            let angularVelocityRadiansB = degToRad(bodyB.angularVelocity)
-
-            let angularLinearVelocityA = vecMath.multiply(raPerp, angularVelocityRadiansA)
-            let angularLinearVelocityB = vecMath.multiply(rbPerp, angularVelocityRadiansB)
-
-            let relativeVelocity = vecMath.subtract(
-                vecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
-                vecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
-
-
-            let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
-            if (contactVelocityMagnitude > 0) {
-                JList[i] = 0
-                continue;
-            }
-
-            let raPerpDotNormal = vecMath.dot(raPerp, normal)
-            let rbPerpDotNormal = vecMath.dot(rbPerp, normal)
-
-            let denom = ((bodyA.invMass + bodyB.invMass)) +
-             ((raPerpDotNormal ** 2) * bodyA.invInertia) + 
-             ((rbPerpDotNormal ** 2) * bodyB.invInertia);
-
-             
-             let j = -(1 + e) * contactVelocityMagnitude;
-             j /= denom;
-             j /= contactPointCount
-             
-            JList[i] = j;
-
-            let impulse = vecMath.multiply(normal, j)
-            impulseList[i] = impulse
-        }
-
-        for(let i = 0; i < contactPointCount; ++i){
             let impulse = impulseList[i]
-            if(!impulse) continue
+            if (!impulse) continue
             let ra = raList[i]
             let rb = rbList[i]
 
             if (!bodyA.isStatic) {
-                bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, vecMath.multiply(vecMath.invert(impulse), bodyA.invMass))
+                let force = vecMath.multiply(vecMath.invert(impulse), bodyA.invMass)
+                forceA.add(force)
+                bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, force)
                 bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, impulse) * bodyA.invInertia)
             }
             if (!bodyB.isStatic) {
-                bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, vecMath.multiply(impulse, bodyB.invMass))
+                let force = vecMath.multiply(impulse, bodyB.invMass);
+                forceB.add(force)
+                bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, force)
                 bodyB.angularVelocity += radToDeg(vecMath.croos(rb, impulse) * bodyB.invInertia)
             }
         }
 
-        // friction impolses
-        for (let i = 0; i < contactPointCount; ++i) {
-            let ra = vecMath.subtract(contactPointList[i], bodyA.position)
-            let rb = vecMath.subtract(contactPointList[i], bodyB.position)
-
-            raList[i] = ra
-            rbList[i] = rb
-
-            let raPerp = vecMath.normal(ra)
-            let rbPerp = vecMath.normal(rb)
-
-            let angularVelocityRadiansA = degToRad(bodyA.angularVelocity)
-            let angularVelocityRadiansB = degToRad(bodyB.angularVelocity)
-
-            let angularLinearVelocityA = vecMath.multiply(raPerp, angularVelocityRadiansA)
-            let angularLinearVelocityB = vecMath.multiply(rbPerp, angularVelocityRadiansB)
-
-            let relativeVelocity = vecMath.subtract(
-                vecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
-                vecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
-
-            let tangent = vecMath.subtract(relativeVelocity, vecMath.multiply(normal, vecMath.dot(relativeVelocity, normal)))
-            if(Collisions.nearlyEqual(tangent.x, 0) && Collisions.nearlyEqual(tangent.y, 0)){
-                continue
-            } else {
-                tangent.normalize();
-            }
-            /* let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
-            if (contactVelocityMagnitude > 0) {
-                continue;
-            } */
-
-            let raPerpDotTangent = vecMath.dot(raPerp, tangent)
-            let rbPerpDotTangent = vecMath.dot(rbPerp, tangent)
-
-            let denom = ((bodyA.invMass + bodyB.invMass)) +
-             ((raPerpDotTangent ** 2) * bodyA.invInertia) + 
-             ((rbPerpDotTangent ** 2) * bodyB.invInertia);
-
-            let contactVelocityMagnitude = vecMath.dot(relativeVelocity, tangent)
-            let jtangent = -1 * contactVelocityMagnitude;
-            jtangent /= denom;
-            jtangent /= contactPointCount
-
-            let frictionImpulse;
-            let j = JList[i];
-
-            //  console.log(j, JList, i)
-            // respection Columbs law
-            if(Math.abs(jtangent) <= j * sFc){
-                frictionImpulse = vecMath.multiply(tangent, jtangent)
-            } else {
-                frictionImpulse = vecMath.multiply(tangent, -j * dFc)
-            }
-            frictionImpulseList[i] = frictionImpulse
-        }
-
-        for(let i = 0; i < contactPointCount; ++i){
-            let frictionImpulse = frictionImpulseList[i]
-            if(!frictionImpulse) continue
-            let ra = raList[i]
-            let rb = rbList[i]
-
-            if (!bodyA.isStatic) {
-                let force = vecMath.multiply(vecMath.invert(frictionImpulse), bodyA.invMass)
-                bodyA.linearVelocity.add(force)
-                bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, frictionImpulse) * bodyA.invInertia)
-            }
-            if (!bodyB.isStatic) {
-                let force = vecMath.multiply(frictionImpulse, bodyB.invMass)
-                bodyB.linearVelocity.add(force)
-                bodyB.angularVelocity += radToDeg(vecMath.croos(rb, frictionImpulse) * bodyB.invInertia)
-            }
-        }
+        return { forceA: forceA, forceB: forceB }
     }
-
-
 
     renderBodies(renderAABB = false, transparency = 1) {
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
             classicPhysicsWorld.renderBody(body, renderAABB, transparency)
-            // txt(i, body.position.x, body.position.y, font(5), 'white')
+            txt(i, body.position.x, body.position.y, font(5), 'white')
         }
     }
 
-    renderJoints(){
-        for(let i = 0; i < this.joints.length; ++i){
+    renderJoints() {
+        for (let i = 0; i < this.joints.length; ++i) {
             let joint = this.joints[i];
             let point1 = joint.pointA;
             let point2 = joint.pointB;
             let length = vecMath.distance(point1, point2)
 
-            let zigs = joint.length % 2 == 0? joint.length + 1: joint.length + 2;
+            let zigs = joint.length % 2 == 0 ? joint.length + 1 : joint.length + 2;
             let size = 0.3
             let width = 0.5
             let x = 0;
 
-            
+
             let ctx = Caldro.renderer.context;
             ctx.save();
-            ctx.translate(point1.x + (point2.x - point1.x)/2, point1.y + (point2.y - point1.y)/2)
+            ctx.translate(point1.x + (point2.x - point1.x) / 2, point1.y + (point2.y - point1.y) / 2)
             // ctx.translate(point2.x - point1.x, point2.y - point1.y)
-            ctx.rotate(degToRad(angleBetweenPoints(point1, point2)+90))
-            drawLine(-length/2, 0, joint.length, 90, "orange", size)
-            x -= length/2;
+            ctx.rotate(degToRad(angleBetweenPoints(point1, point2) + 90))
+            drawLine(-length / 2, 0, joint.length, 90, "orange", size)
+            x -= length / 2;
             let step = length / zigs
-            for(let z = 0; z < zigs; ++z){
-                if(z == 0){
-                    circle(-length/2, 0, size, "white")
-                    line(-length/2, 0, x + step, -width, "white", size)
-                } else if (z == zigs - 1){
-                    circle(length/2, 0, size, "white")
-                    line(x, width, length/2, 0, "white", size)
+            for (let z = 0; z < zigs; ++z) {
+                if (z == 0) {
+                    circle(-length / 2, 0, size, "white")
+                    line(-length / 2, 0, x + step, -width, "white", size)
+                } else if (z == zigs - 1) {
+                    circle(length / 2, 0, size, "white")
+                    line(x, width, length / 2, 0, "white", size)
                 } else {
                     line(x, width, x + step, -width, "white", size)
                 }
@@ -605,13 +577,13 @@ class classicPhysicsWorld {
             }
             ctx.restore();
 
-/* 
-            let fnt = size * 10
-            textOutline(fnt*0.1, "orange")
-            txt("A", point1.x, point1.y, font(fnt), "white")
-            txt("B", point2.x, point2.y, font(fnt), "white")
-            textOutline(0)
-             */
+            /* 
+                        let fnt = size * 10
+                        textOutline(fnt*0.1, "orange")
+                        txt("A", point1.x, point1.y, font(fnt), "white")
+                        txt("B", point2.x, point2.y, font(fnt), "white")
+                        textOutline(0)
+                         */
         }
     }
 
@@ -1146,7 +1118,7 @@ class transformPoint {
     constructor(x, y, angle) {
         this.setTransform(x, y, angle)
     }
-    setTransform(x, y, angle){
+    setTransform(x, y, angle) {
         angle = degToRad(angle)
         this.positionX = x;
         this.positionY = y;
@@ -1177,6 +1149,7 @@ class classicPhysics {
                 this.lifetime = 0;
                 this.lockedX = false;
                 this.lockedY = false;
+                this.lockedAngle = false;
                 this.gravity = true;
                 this.inCollision = false;
                 this.tag = "";
@@ -1190,8 +1163,8 @@ class classicPhysics {
                 this.density = density;
                 this.restitution = restitution;
                 this.area = area;
-                this.staticFriction = 0.6;
-                this.dynamicFriction = 0.4; 
+                this.staticFriction = new Lvector2D(0, 0); // -----------------------------------
+                this.dynamicFriction = new Lvector2D(0, 0); // ---------------------------------
                 this.isStatic = isStatic;
                 this.collidable = true;
                 this.isTrigger = false;
@@ -1199,6 +1172,7 @@ class classicPhysics {
                 this.scaleX = scaleX;
                 this.scaleY = scaleY;
                 this.aabb;
+
 
                 if (!(this.shapeType == classicPhysicsWorld.shapeType.circle)) {
                     if (this.shapeType == classicPhysicsWorld.shapeType.box) {
@@ -1213,13 +1187,20 @@ class classicPhysics {
 
                 this.transformUpdateRequired = true;
                 this.aabbUpdateRequired = true;
+
             }
 
             onAdd() { };
             onRemove() { };
+
             preCollision() { }
-            onCollisionEnter() { };
+
+            onCollisionStart(body, collisionInformation) { };
+            onCollisionContinue(body, collisionInformation) { };
+            onCollisionEnd(body, collisionInformation) { };
+
             callback() { };
+
             preRender() { };
             postRender() { };
             render() {
@@ -1302,7 +1283,9 @@ class classicPhysics {
                 this.oldPosition.copy(this.position)
                 if (this.lockedX) { this.linearVelocity.x = 0; }
                 if (this.lockedY) { this.linearVelocity.y = 0; }
+                if (this.lockedAngle) {this.angularVelocity = 0; }
 
+                this.applyFriction(this.staticFriction, deltatime)
                 let newPosition = (vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime)))
                 this.position.x = newPosition.x
                 this.position.y = newPosition.y
@@ -1316,15 +1299,12 @@ class classicPhysics {
                 this.force = new Lvector2D(0, 0)
                 this.transformUpdateRequired = true;
                 this.aabbUpdateRequired = true;
+                
                 if (!shouldCallCalback) return
                 this.callback();
             }
 
             setMass(mass) {
-                if(mass == 0){
-                    console.error("RigidBody Error: Can't set a body's mass to 0, make the body static instead")
-                    return 
-                }
                 this.mass = mass;
                 this.invMass = 1 / this.mass;
                 this.inertia = classicPhysics.CalculateRotationalInertia(this);
@@ -1407,7 +1387,7 @@ class classicPhysics {
         }
 
         this.joint = class {
-            constructor(bodyA, bodyB, length, k, dampingRatio = 0.9, offsetA = Lvector2D.zero(), offsetB = Lvector2D.zero()){
+            constructor(bodyA, bodyB, length, k, dampingRatio = 0.9, offsetA = Lvector2D.zero(), offsetB = Lvector2D.zero()) {
                 this.bodyA = bodyA;
                 this.bodyB = bodyB;
                 this.transformPointA = new transformPoint(bodyA.position.x, bodyA.position.y, bodyA.angle)
@@ -1418,87 +1398,65 @@ class classicPhysics {
                 this.pointB = vecMath.add(this.bodyB.position, vecMath.transform(this.offsetB, this.transformPointB))
                 this.oldPointA = vecMath.copy(this.pointA)
                 this.oldPointB = vecMath.copy(this.pointB)
-                if(length == "auto" || length == null){
+                if (length == "auto" || length == null) {
                     length = vecMath.distance(bodyA.position, bodyB.position)
                 }
                 this.length = length
-                this.k = k; 
+                this.k = k;
                 this.dampingRatio = dampingRatio
             }
-            stepugh(deltatime){
-                this.oldPointA.copy(this.pointA)
-                this.oldPointB.copy(this.pointB)
-                let velA = this.bodyA.linearVelocity
-                let velB = this.bodyB.linearVelocity
-                // let velA = vecMath.subtract(this.oldPointA, this.pointA)
-                // let velB = vecMath.subtract(this.oldPointB, this.pointB)
-                
-                
-
-                let distance = vecMath.distance(this.bodyA.position, this.bodyB.position)
-                let del = distance - this.length
-
-
-            }
-            step(deltatime){
+            step(deltatime) {
                 this.transformPointA.setTransform(this.bodyA.position.x, this.bodyA.position.y, this.bodyA.angle)
                 this.transformPointB.setTransform(this.bodyB.position.x, this.bodyB.position.y, this.bodyB.angle)
                 this.oldPointA.copy(this.pointA)
                 this.oldPointB.copy(this.pointB)
                 this.pointA.copy(vecMath.transform(this.offsetA, this.transformPointA))
                 this.pointB.copy(vecMath.transform(this.offsetB, this.transformPointB))
-                // let velA = this.bodyA.linearVelocity
-                // let velB = this.bodyB.linearVelocity
-                let velA = vecMath.subtract(this.pointA, this.oldPointA)
-                let velB = vecMath.subtract(this.pointB, this.oldPointB)
+                let velA = this.bodyA.linearVelocity
+                let velB = this.bodyB.linearVelocity
                 // let velA = vecMath.subtract(this.oldPointA, this.pointA)
                 // let velB = vecMath.subtract(this.oldPointB, this.pointB)
-                
-                
-                this.dampingRatio = 0.5
+
+
 
                 let distance = vecMath.distance(this.pointA, this.pointB)
                 let difference = distance - this.length
 
-                let percent = (difference / distance) / 2
-                percent *= (1/this.dampingRatio)
+                let percent = (difference / distance)
                 percent = typeof percent != "number" ? 0 : percent;
-                
+
                 let vx = this.pointB.x - this.pointA.x
                 let vy = this.pointB.y - this.pointA.y
                 let offsetX = vx * percent;
-				let offsetY = vy * percent;
-                
+                let offsetY = vy * percent;
+
                 let force = vecMath.multiply(new Lvector2D(offsetX, offsetY), this.k)
                 // let damper = vecMath.multiply(force, 1)
                 let damper = vecMath.multiply(vecMath.subtract(
-                    velA, velB), this.dampingRatio)
-                force = vecMath.subtract(force, damper)
-                force.multiply(deltatime)
-                // force.multiply(deltatime)
-				if (!this.bodyA.isStatic) {
-                    this.bodyA.addForce(force)
-                    // this.bodyA.move(force)
-				}
-				if (!this.bodyB.static) {
-                    this.bodyB.addForce(vecMath.invert(force))
-                    // this.bodyB.move(vecMath.invert(force))
-				} 
-                
-/*                 
-                let direction = vecMath.subtract(this.pointA, this.pointB);
-                let e = vecMath.length(direction) - this.length
-                direction.normalize()
-
-                let force = vecMath.multiply(direction, -this.k * e)
-                let damper = vecMath.multiply(vecMath.subtract(
                     velA, velB), -this.dampingRatio)
                 force = vecMath.add(force, damper)
-                // force.multiply(deltatime)
+                force.multiply(deltatime)
+                if (!this.bodyA.isStatic) {
+                    this.bodyA.addForce(force)
+                }
+                if (!this.bodyB.static) {
+                    this.bodyB.addForce(vecMath.invert(force))
+                }
 
-                this.bodyA.addForce((force) )
-                this.bodyB.addForce(vecMath.invert(force))
- */
+                /*                 
+                                let direction = vecMath.subtract(this.pointA, this.pointB);
+                                let e = vecMath.length(direction) - this.length
+                                direction.normalize()
+                
+                                let force = vecMath.multiply(direction, -this.k * e)
+                                let damper = vecMath.multiply(vecMath.subtract(
+                                    velA, velB), -this.dampingRatio)
+                                force = vecMath.add(force, damper)
+                                // force.multiply(deltatime)
+                
+                                this.bodyA.addForce((force) )
+                                this.bodyB.addForce(vecMath.invert(force))
+                 */
             }
         }
     }
@@ -1506,10 +1464,10 @@ class classicPhysics {
     static CalculateRotationalInertia(body) {
         let shapeType = body.shapeType;
         let mass = body.mass
-        if (shapeType == classicPhysicsWorld.shapeType.circle) {
+        if (shapeType = classicPhysicsWorld.shapeType.circle) {
             return (1 / 2) * mass * (body.radius ** 2)
         } else
-            if (shapeType == classicPhysicsWorld.shapeType.box) {
+            if (shapeType = classicPhysicsWorld.shapeType.box) {
                 return (1 / 12) * mass * (body.width ** 2 + body.height ** 2)
             } else {
                 console.log("No Inertia calc for plygons yet")
@@ -1674,7 +1632,7 @@ class classicPhysics {
         let body = new this.rigidBody(position, mass, inertia, area, density, restitution, isStatic, 0, scaleX, scaleY, scaledVerticies, classicPhysicsWorld.shapeType.polygon)
         return body
     }
-    createSpringJoint(bodyA, bodyB, length, k, dampingRatio, offsetA, offsetB){
+    createSpringJoint(bodyA, bodyB, length, k, dampingRatio, offsetA, offsetB) {
         let joint = new this.joint(bodyA, bodyB, length, k, dampingRatio, offsetA, offsetB);
         return joint
     }

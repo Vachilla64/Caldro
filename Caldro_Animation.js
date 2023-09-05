@@ -28,6 +28,8 @@ class AnimationGraph {
         this.loop = false;
         this.startX = 0;
         this.endX = 0;
+        this.offsetX = 0;
+        this.nodeAddiitonoffsetX = 0;
         this.setAnimationNodesFromArray(animationNodes)
     }
     onStart() { };
@@ -35,6 +37,7 @@ class AnimationGraph {
     onEnd() { };
 
     update(deltatime, valueX = null) {
+        valueX+= this.offsetX
         if (!this.running) return;
         if (!valueX) {
             // this.currentX = clip(valueX, this.startX, this.endX)
@@ -134,6 +137,7 @@ class AnimationGraph {
     }
 
     getValueAtTime(time, fireEnterfunctions = false) {
+        time += this.offsetX
         let value;
         let nodeX1 = null;
         let nodeX2 = null;
@@ -183,6 +187,7 @@ class AnimationGraph {
             console.error("node is not an instance of the 'AnimationGraphNode' class")
             return;
         } */
+        time += this.nodeAddiitonoffsetX
         this.endX = Math.max(time, this.endX)
         if (onEnter === AnimationGraph.SAMEASPREVIOUS) {
             onEnter = this.nodes[this.nodes.length - 1].onEnter

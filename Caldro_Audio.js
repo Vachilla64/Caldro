@@ -2,6 +2,9 @@
 
 // [SID]
 class DOMaudioManager {
+	static shouldRespond(audioID, audioManager) {
+		return (audioManager.active && audioManager.bank[audioID] && audioManager.initialized)
+	}
 	constructor() {
 		let audioManager = this;
 		this.initState = false;
@@ -13,6 +16,22 @@ class DOMaudioManager {
 		this.masterVolume = 1;
 		this.fileSrcPrefix = "";
 		this.bank = {};
+		this.pausedAudio = new Array();
+
+		this.WAAPICtx = createAudioContext();
+		this.masterGainNode;
+		this.masterFilterNode;
+		this.preSFXNode;
+		if (this.WAAPICtx) {
+			this.masterFilterNode = this.WAAPICtx.createBiquadFilter();
+			this.masterFilterNode.frequency.value = 20000
+			this.masterGainNode = this.WAAPICtx.createGain();
+			this.preGainNode = this.WAAPICtx.createGain();
+
+			this.preGainNode.connect(this.masterFilterNode)
+			this.masterFilterNode.connect(this.masterGainNode);
+			this.masterGainNode.connect(this.WAAPICtx.destination);
+		}
 	}
 	onInit() { };
 	initialize() {
@@ -25,6 +44,7 @@ class DOMaudioManager {
 				sound.load();
 				sound.currentTime = 1;
 				sound.volume = 0;
+				sound.groupPaused = false
 				setTimeout(() => {
 					sound.play();
 					setTimeout(function () {
@@ -48,30 +68,43 @@ class DOMaudioManager {
 		if (!this.active)
 			return;
 		for (let s in this.bank) {
-			if (!this.isAudioFile(s) && Caldro.info.loggingIssus()) {
-				//console.log("A non audio file is present in this sound bank \n That file is of type "+typeof this.bank[s]+"\n The non audio file")
-				// console.log(this.bank[s])
+			let didPause = this.pause(s)
+			if (didPause) {
+				this.pausedAudio.push(s)
+				this.bank[s].groupPaused = true
 			}
-			this.bank[s].pause();
 		}
 	};
+	resumeAll() {
+		if (!this.active)
+			return;
+		for (let s of this.pausedAudio) {
+			if (!this.bank[s].groupPaused) continue;
+			this.play(s)
+			console.log("tried")
+		}
+		this.pausedAudio.length = 0;
+	};
+
+	checkPlaying() {
+		let playing = new Array();
+		for (let s in this.bank) {
+			if (this.bank[s].isPlaying)
+				playing.push(s)
+		}
+		return playing;
+	}
 
 	stopAll() {
 		if (!this.active)
 			return;
 		for (let s in this.bank) {
-			if (!this.isAudioFile(s) && Caldro.info.loggingIssus()) {
-				//console.log("A non audio file is present in this sound bank \n That file is of type "+typeof this.bank[s]+"\n The non audio file")
-				// console.log(this.bank[s])
-			}
-			this.bank[s].pause();
-			this.bank[s].currentTime = 0;
+			this.stop(s)
 		}
 	};
 
 	play(id, cloneNode = false, time = null, volume = null) {
-		if (!this.active || !this.bank[id] || !this.initialized)
-			return;
+		if (!DOMaudioManager.shouldRespond(id, this)) return;
 		if (cloneNode) {
 			let sound = this.bank[id].cloneNode(true);
 			sound.volume = this.bank[id].volume;
@@ -80,14 +113,16 @@ class DOMaudioManager {
 			if (volume !== null)
 				sound.volume = volume;
 			sound.play();
+			return true;
 		} else {
 			let sound = this.bank[id];
 			if (time !== null)
-			sound.currentTime = time;
+				sound.currentTime = time;
 			if (volume !== null)
-			sound.volume = volume;
+				sound.volume = volume;
 			sound.play();
-			sound.isPlaying = true
+			sound.groupPaused = false;
+			return true;
 		}
 	};
 
@@ -95,10 +130,12 @@ class DOMaudioManager {
 		if (!this.active)
 			return;
 		// console.log("Trying to pause Audio file tagged **"+id+"**, that file is "+this.bank[id])
+
 		if (this.isAudioFile(id)) {
+			if (!this.bank[id].isPlaying) return;
 			this.bank[id].pause();
-			this.bank[id].isPlaying = false;
 			// console.log(typeof this.bank[id])
+			return true
 		}
 	};
 
@@ -107,16 +144,15 @@ class DOMaudioManager {
 			return;
 		// console.log("Trying to pause Audio file tagged **"+id+"**, that file is "+this.bank[id])
 		if (this.isAudioFile(id)) {
-			this.bank[id].pause();
-			this.bank[id].currentTime = 0;
-			this.bank[id].isPlaying = false;
+			let audio = this.bank[id]
+			// console.log(audio)
+			audio.pause();
+			audio.currentTime = 0;
 			// console.log(typeof this.bank[id])
+			return true
 		}
 	};
 
-	getTime(id) {
-		return this.bank[id].currentTime;
-	};
 
 	isAudioFile(id) {
 		if (this.bank[id]) {
@@ -140,8 +176,11 @@ class DOMaudioManager {
 		}
 	};
 
-	setTime(id, value = 0) {
+	setCurrentTime(id, value = 0) {
 		this.bank[id].currentTime = value;
+	};
+	getCurrentTime(id) {
+		return this.bank[id].currentTime;
 	};
 
 	access() {
@@ -179,7 +218,7 @@ class DOMaudioManager {
 			return;
 		// let aud = document.createElement("audio");
 		let aud = new Audio();
-		aud.src = this.fileSrcPrefix + src;
+		aud.src = this.fileSrcPrefix + (this.fileSrcPrefix[this.fileSrcPrefix.length - 1] != "/" ? "/" : "") + src
 		aud.volume = volume;
 		aud.psuedoVolume = volume;
 		aud.id = id;
@@ -189,9 +228,27 @@ class DOMaudioManager {
 		this.bank[id] = aud;
 		++this.addedSounds;
 		// document.body.appendChild(aud)
-		aud.oncanplaythrough = () => {
+		aud.onended = () => {
+			aud.isPlaying = false;
+			console.log("[Audio}: " + id + " was ended")
+		}
+		aud.onplaying = () => {
+			aud.isPlaying = true;
+			// console.log("[Audio}: "+id+" has started playing")
+		}
+		aud.onpause = () => {
+			aud.isPlaying = false;
+			// console.log("[Audio}: "+id+" was paused")
+		}
+		let afterloaded =  () => {
+			if (this.WAAPICtx) {
+				let mediaElement = this.WAAPICtx.createMediaElementSource(aud);
+				mediaElement.connect(this.preGainNode);
+			}
+			aud.removeEventListener("canplaythrough", afterloaded, false)
 			this.updateLoadinfo();
-		};
+		}
+		aud.addEventListener("canplaythrough", afterloaded, false)
 		aud.setVolume = (volume = 1) => {
 			aud.psuedoVolume = volume;
 			aud.volume = aud.psuedoVolume * this.masterVolume;
@@ -199,19 +256,19 @@ class DOMaudioManager {
 		aud.getVolume = function (volume = 1) {
 			return aud.psuedoVolume;
 		};
-		aud.getCurrentTime = function(){
+		aud.getCurrentTime = function () {
 			return aud.currentTime
 		}
-		aud.setCurrentTime = function(time){
+		aud.setCurrentTime = function (time) {
 			return aud.currentTime = time;
 		}
-		aud.setPlaybackRate = function(playbackRate = 1){
+		aud.setPlaybackRate = function (playbackRate = 1) {
 			aud.playbackRate = playbackRate;
 		}
-		aud.getPlaybackRate = function(){
+		aud.getPlaybackRate = function () {
 			return aud.playbackRate;
 		}
-		aud.setLoop = function(loop = true){
+		aud.setLoop = function (loop = true) {
 			aud.loop = loop
 		}
 	};
@@ -234,6 +291,12 @@ class DOMaudioManager {
 	};
 }
 
+class WAAPIEffectChain {
+	constructor(WAAPIAudioManager) {
+		this.WAAPIAudioManager = WAAPIAudioManager
+	}
+}
+
 class WAAPIAudioManager {
 	constructor() {
 		this.active = true
@@ -244,6 +307,7 @@ class WAAPIAudioManager {
 		this.loadedData = 0;
 		this.totalData = 0;
 		this.initData = 0;
+		this.fileSrcPrefix = "";
 		this.audioBuffers = {};
 		this.loadingQueue = {};
 		this.runningAudio = {};
@@ -258,7 +322,7 @@ class WAAPIAudioManager {
 		this.masterGainNode = null;
 		this.masterCompressor = null;
 		this.masterPlaybackRate = null;
-		this.nodeGraphEnd = null
+		this.nodeGraphEnd = null;
 	}
 	getMasterVolume() {
 		if (!this.initialized) return
@@ -266,7 +330,7 @@ class WAAPIAudioManager {
 	}
 	setMasterVolume(volume) {
 		if (!this.initialized) return
-		this.masterGainNode.gain.value = volume*0.01
+		this.masterGainNode.gain.value = volume * 0.01
 	}
 	getLoadPercenteage(actualDataLoaded = false) {
 		if (actualDataLoaded)
@@ -545,13 +609,15 @@ class WAAPIAudioManager {
 	setVolume(id, volume) {
 		let soundObject = this.audioBuffers[id];
 		if (!soundObject) {
-			if (this.throwErrors) console.error("WAAPIAudioManager Error: no sound with an id of '" + id + "' was added to the audioManager")
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no sound with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		soundObject.setVolume(volume)
 	}
 	add(id, src, volume = 1) {
 		if (!this.active) return;
+		src = this.fileSrcPrefix + (this.fileSrcPrefix[this.fileSrcPrefix.length - 1] != "/" ? "/" : "") + src
 		if (this.autoLoad) {
 			if (!this.audioContext) {
 				if (this.throwErrors) throw "WAAPIAudioManager Error: audioManager has not been initialized. Initialize audioManager with [audioManager.initialize] before adding any audio else turn off [audioManager.autoLoad]"
@@ -594,7 +660,8 @@ class WAAPIAudioManager {
 		if (delayTime <= 0) delayTime = 0;
 		if (!soundObject) {
 			// throw "WAAPIAudioManager Error: no sound with an id of '"+id+"' was added to the audioManager"
-			if (this.throwErrors) console.error("WAAPIAudioManager Error: no audio with an id of '" + id + "' was added to the audioManager")
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		if (!this.initialized) {
@@ -606,7 +673,8 @@ class WAAPIAudioManager {
 		if (!this.active) return;
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		soundObject.pause();
@@ -615,7 +683,7 @@ class WAAPIAudioManager {
 		if (!this.active) return;
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		soundObject.stop();
@@ -624,7 +692,8 @@ class WAAPIAudioManager {
 		if (!this.active) return;
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return
 		}
 		soundObject.setLoop(loop, start, end, isNative)
@@ -648,7 +717,8 @@ class WAAPIAudioManager {
 	getCurrentTime(id) {
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		return soundObject.getCurrentTime();
@@ -656,7 +726,8 @@ class WAAPIAudioManager {
 	setCurrentTime(id, currentTime) {
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		soundObject.setCurrentTime(currentTime)
@@ -664,7 +735,8 @@ class WAAPIAudioManager {
 	getPlaybackRate(id) {
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		return soundObject.getPlaybackRate();
@@ -672,7 +744,8 @@ class WAAPIAudioManager {
 	setPlaybackRate(id, playbackRate) {
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		soundObject.setPlaybackRate(playbackRate)
@@ -680,7 +753,8 @@ class WAAPIAudioManager {
 	getDetune(id) {
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		return soundObject.getDetune();
@@ -688,7 +762,8 @@ class WAAPIAudioManager {
 	setDetune(id, detune) {
 		let soundObject = this.audioBuffers[id]
 		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
 			return;
 		}
 		soundObject.setDetune(detune)
@@ -697,15 +772,17 @@ class WAAPIAudioManager {
 		if (!this.active) return null;
 		// if (!this.active) return this.createSoundObject(this.audioContext.createBuffer(2, this.audioContext.sampleRate, this.audioContext.sampleRate));
 		let soundObject = this.audioBuffers[id]
+		if (!soundObject) {
+			if (this.throwErrors)
+				WAAPIAudioManager.error("no audio with an id of '" + id + "' was added to the audioManager")
+			return;
+		}
 		if (clone) {
 			let sloneAudio = this.createSoundObject(soundObject.buffer)
-			if(fullClone){
+			if (fullClone) {
 				sloneAudio.setVolume(soundObject.getVolume())
 			}
 			return sloneAudio
-		}
-		if (!soundObject) {
-			if (this.throwErrors) throw `WAAPIAudioManager Error: no audio with an id of '${id}' was added to the audio Manager`
 		}
 		return soundObject
 	}
@@ -719,7 +796,8 @@ class WAAPIAudioManager {
 	loadFromQueue(id) {
 		if (!this.active) return;
 		if (!this.audioContext) {
-			if (this.throwErrors) throw "WAAPIAudioManager Error: audioManager has not been initialized. Initialize audioManager with [audioManager.initialize] before adding any audio else turn off [audioManager.autoLoad]"
+			if (this.throwErrors)
+				WAAPIAudioManager.error("audioManager has not been initialized. Initialize audioManager with [audioManager.initialize] before adding any audio else turn off [audioManager.autoLoad]")
 			return;
 		}
 		this.loadAudioBuffer(this.loadingQueue[id].src, (buffer) => {
@@ -781,11 +859,19 @@ class WAAPIAudioManager {
 				// console.log(`Load for src ${src}: ${loadprogress}%`)
 			}
 		}
-		xReq.send();
+		try {
+			xReq.send();
+		} catch (error) {
+			WAAPIAudioManager.error("file can't be loaded, please check the path of the file: \n'" + src + "'")
+		}
 		return audioBuffer;
 	}
 	makeEffectsChain() {
 		// TODO: figure out what on earth is supposed to go in here, lol
+	}
+	static error(message) {
+		let msg = message.substring(0, 1).toUpperCase() + message.substring(1)
+		console.error("[WAAPIAudioManager Error!]:\n" + "'" + msg + "'")
 	}
 }
 
@@ -825,7 +911,7 @@ class OWAAPIAudioManager {
 		let loopStart = 0;
 		let loopEnd = 0
 		let playbackRate = 1
-		let WAAPIam = this;	
+		let WAAPIam = this;
 		return {
 			moreInfo: function () {
 				return {

@@ -23,7 +23,7 @@ class dynamicPoint2D {
 		this.oldX = x;
 		this.oldY = y;
 		this.tag = "dynamicPoint2D";
-		this.ID = psuedoUUID();
+		this.ID = generateRandomID();
 		this.data = data
 	}
 	updatePosition(x = 0, y = 0) {

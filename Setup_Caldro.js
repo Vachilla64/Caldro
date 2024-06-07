@@ -33,7 +33,11 @@ localStorage.setItem("Caldro_files", JSON.stringify(Caldro_files));
 var fileSrcPrefix = "../Caldro"
 var fileLoadInterval = 30
 
-for (let i = 0; i < Caldro_files.length; ++i) {
+for (let i = 0; i <= Caldro_files.length; ++i) {
+	if(i == Caldro_files.length){
+		console.log("Setup comeplete!");
+		break;
+	}
 	setTimeout(()=>{
 		let scriptFile = document.createElement("script");
 		let fileSrc = fileSrcPrefix + "/" + Caldro_files[i];
@@ -42,3 +46,5 @@ for (let i = 0; i < Caldro_files.length; ++i) {
 		document.body.appendChild(scriptFile);
 	}, i*fileLoadInterval)
 };
+
+console.log("Setting up Caldro...")

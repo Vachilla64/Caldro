@@ -18,25 +18,26 @@ class DOMaudioManager {
 		this.bank = {};
 		this.pausedAudio = new Array();
 
-		this.WAAPICtx = createAudioContext();
+		this.WAAPICtx;
 		this.masterGainNode;
 		this.masterFilterNode;
 		this.preSFXNode;
-		if (this.WAAPICtx) {
-			this.masterFilterNode = this.WAAPICtx.createBiquadFilter();
-			this.masterFilterNode.frequency.value = 20000
-			this.masterGainNode = this.WAAPICtx.createGain();
-			this.preGainNode = this.WAAPICtx.createGain();
-
-			this.preGainNode.connect(this.masterFilterNode)
-			this.masterFilterNode.connect(this.masterGainNode);
-			this.masterGainNode.connect(this.WAAPICtx.destination);
-		}
 	}
 	onInit() { };
 	initialize() {
 		if (!this.active)
 			return;
+			this.WAAPICtx = createAudioContext();
+			if (this.WAAPICtx) {
+				this.masterFilterNode = this.WAAPICtx.createBiquadFilter();
+				this.masterFilterNode.frequency.value = 20000
+				this.masterGainNode = this.WAAPICtx.createGain();
+				this.preGainNode = this.WAAPICtx.createGain();
+	
+				this.preGainNode.connect(this.masterFilterNode)
+				this.masterFilterNode.connect(this.masterGainNode);
+				this.masterGainNode.connect(this.WAAPICtx.destination);
+			}
 		for (let s = 0; s < this.bank.length; ++s) {
 			try {
 				let sound = this.bank[s];

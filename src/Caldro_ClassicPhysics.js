@@ -1,4 +1,4 @@
-"use strict"; // Classic_Physics
+"use strict"; // Classic_Physics master
 
 class classicPhysicsWorld {
     static minBodySize = 0.01 * 0.01;
@@ -53,6 +53,8 @@ class classicPhysicsWorld {
             impulseList: new Array(2),
             raList: new Array(2),
             rbList: new Array(2),
+            frictionImpulseList: new Array(2),
+            JList: new Array(2),
         }
 
         this.collisionTracking = {
@@ -135,6 +137,7 @@ class classicPhysicsWorld {
     containsBody(body) {
         return this.bodies.includes(body);
     }
+    onAddBody(body){}
     addBody(body) {
         if (this.bodies.includes(body)) {
             console.error("Physics Engine Error: Cannot add a body to a world if that world already contains that body")
@@ -142,12 +145,20 @@ class classicPhysicsWorld {
         }
         body.lifetime = 0;
         this.bodies.push(body)
-        body.onAdd();
+        world.onAddBody(body)
+        body.onAdd(this);
     }
-    addJoint(joint) {
+    addJoint(joint){
         this.joints.push(joint);
     }
-    removeAllBodies() {
+    removeAllBodies(fireOnRemoveEvents = false) {
+        if(fireOnRemoveEvents){
+            for(let i = this.bodies.length-1; i > -1; --i){
+                this.bodies[i].onRemove();
+                this.bodies.splice(i, 1)
+            }
+            return
+        }
         this.bodies.length = 0;
     }
     removeBody(body) {
@@ -394,10 +405,11 @@ class classicPhysicsWorld {
                 if ((userInfoA === Collisions.GHOST || userInfoB === Collisions.GHOST)) continue
                 this.seperateBodies(bodyA, bodyB, minimumTranslationVector)
                 // this.resolveCollisionBasic(manifoldA)
-                this.resolveCollisionWithRotation(manifoldA)
+                // this.resolveCollisionWithRotation(manifoldA)
+                this.resolveCollisionWithRotationAndFriction(manifoldA)
 
-                bodyA.applyFriction(bodyB.dynamicFriction, deltatime)
-                bodyB.applyFriction(bodyA.dynamicFriction, deltatime)
+                // bodyA.applyFriction(bodyB.dynamicFriction, deltatime)
+                // bodyB.applyFriction(bodyA.dynamicFriction, deltatime)
             } else {
                 // gaonna still have to handle stuff here somehow
             }
@@ -539,11 +551,178 @@ class classicPhysicsWorld {
         return { forceA: forceA, forceB: forceB }
     }
 
+    
+    resolveCollisionWithRotationAndFriction(manifold) {
+        let { bodyA, bodyB, normal, contactPoint1, contactPoint2, contactPointCount } = manifold;
+
+        let { contactPointList, impulseList, frictionImpulseList, raList, rbList, JList} = this.resolveCollisionWithRotationLists
+        
+        contactPointList[0] = contactPoint1
+        contactPointList[1] = contactPoint2
+
+        impulseList.length = 0;
+        raList.length = 0;
+        rbList.length = 0;
+        frictionImpulseList.length = 0;
+        JList.length = 0;
+        
+        let e = Math.min(bodyA.restitution, bodyB.restitution);
+        let sFc = (bodyA.staticFriction + bodyB.staticFriction) / 2;
+        let dFc = (bodyA.dynamicFriction + bodyB.dynamicFriction) / 2;
+
+
+        // collision impulses
+        for (let i = 0; i < contactPointCount; ++i) {
+            let ra = vecMath.subtract(contactPointList[i], bodyA.position)
+            let rb = vecMath.subtract(contactPointList[i], bodyB.position)
+
+            raList[i] = ra
+            rbList[i] = rb
+
+            let raPerp = vecMath.normal(ra)
+            let rbPerp = vecMath.normal(rb)
+
+            let angularVelocityRadiansA = degToRad(bodyA.angularVelocity)
+            let angularVelocityRadiansB = degToRad(bodyB.angularVelocity)
+
+            let angularLinearVelocityA = vecMath.multiply(raPerp, angularVelocityRadiansA)
+            let angularLinearVelocityB = vecMath.multiply(rbPerp, angularVelocityRadiansB)
+
+            let relativeVelocity = vecMath.subtract(
+                vecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
+                vecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
+
+
+            let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
+            if (contactVelocityMagnitude > 0) {
+                JList[i] = 0
+                continue;
+            }
+
+            let raPerpDotNormal = vecMath.dot(raPerp, normal)
+            let rbPerpDotNormal = vecMath.dot(rbPerp, normal)
+
+            let denom = ((bodyA.invMass + bodyB.invMass)) +
+             ((raPerpDotNormal ** 2) * bodyA.invInertia) + 
+             ((rbPerpDotNormal ** 2) * bodyB.invInertia);
+
+             
+             let j = -(1 + e) * contactVelocityMagnitude;
+             j /= denom;
+             j /= contactPointCount
+             
+            JList[i] = j;
+
+            let impulse = vecMath.multiply(normal, j)
+            impulseList[i] = impulse
+        }
+
+        let forceA = new Lvector2D(0, 0);
+        let forceB = new Lvector2D(0, 0);
+
+        for (let i = 0; i < contactPointCount; ++i) {
+            let impulse = impulseList[i]
+            if (!impulse) continue
+            let ra = raList[i]
+            let rb = rbList[i]
+
+            if (!bodyA.isStatic) {
+                let force = vecMath.multiply(vecMath.invert(impulse), bodyA.invMass)
+                forceA.add(force)
+                bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, force)
+                bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, impulse) * bodyA.invInertia)
+            }
+            if (!bodyB.isStatic) {
+                let force = vecMath.multiply(impulse, bodyB.invMass);
+                forceB.add(force)
+                bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, force)
+                bodyB.angularVelocity += radToDeg(vecMath.croos(rb, impulse) * bodyB.invInertia)
+            }
+        }
+
+        // friction impolses
+        for (let i = 0; i < contactPointCount; ++i) {
+            let ra = vecMath.subtract(contactPointList[i], bodyA.position)
+            let rb = vecMath.subtract(contactPointList[i], bodyB.position)
+
+            raList[i] = ra
+            rbList[i] = rb
+
+            let raPerp = vecMath.normal(ra)
+            let rbPerp = vecMath.normal(rb)
+
+            let angularVelocityRadiansA = degToRad(bodyA.angularVelocity)
+            let angularVelocityRadiansB = degToRad(bodyB.angularVelocity)
+
+            let angularLinearVelocityA = vecMath.multiply(raPerp, angularVelocityRadiansA)
+            let angularLinearVelocityB = vecMath.multiply(rbPerp, angularVelocityRadiansB)
+
+            let relativeVelocity = vecMath.subtract(
+                vecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
+                vecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
+
+            let tangent = vecMath.subtract(relativeVelocity, vecMath.multiply(normal, vecMath.dot(relativeVelocity, normal)))
+            if(Collisions.nearlyEqual(tangent.x, 0) && Collisions.nearlyEqual(tangent.y, 0)){
+                continue
+            } else {
+                tangent.normalize();
+            }
+            /* let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
+            if (contactVelocityMagnitude > 0) {
+                continue;
+            } */
+
+            let raPerpDotTangent = vecMath.dot(raPerp, tangent)
+            let rbPerpDotTangent = vecMath.dot(rbPerp, tangent)
+
+            let denom = ((bodyA.invMass + bodyB.invMass)) +
+             ((raPerpDotTangent ** 2) * bodyA.invInertia) + 
+             ((rbPerpDotTangent ** 2) * bodyB.invInertia);
+
+            let contactVelocityMagnitude = vecMath.dot(relativeVelocity, tangent)
+            let jtangent = -1 * contactVelocityMagnitude;
+            jtangent /= denom;
+            jtangent /= contactPointCount
+
+            let frictionImpulse;
+            let j = JList[i];
+
+            //  console.log(j, JList, i)
+            // respection Columbs law
+            if(Math.abs(jtangent) <= j * sFc){
+                frictionImpulse = vecMath.multiply(tangent, jtangent)
+            } else {
+                frictionImpulse = vecMath.multiply(tangent, -j * dFc)
+            }
+            frictionImpulseList[i] = frictionImpulse
+        }
+
+        for(let i = 0; i < contactPointCount; ++i){
+            let frictionImpulse = frictionImpulseList[i]
+            if(!frictionImpulse) continue
+            let ra = raList[i]
+            let rb = rbList[i]
+
+            if (!bodyA.isStatic) {
+                let force = vecMath.multiply(vecMath.invert(frictionImpulse), bodyA.invMass)
+                bodyA.linearVelocity.add(force)
+                bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, frictionImpulse) * bodyA.invInertia)
+            }
+            if (!bodyB.isStatic) {
+                let force = vecMath.multiply(frictionImpulse, bodyB.invMass)
+                bodyB.linearVelocity.add(force)
+                bodyB.angularVelocity += radToDeg(vecMath.croos(rb, frictionImpulse) * bodyB.invInertia)
+            }
+        }
+
+        return { forceA: forceA, forceB: forceB }
+    }
+
     renderBodies(renderAABB = false, transparency = 1) {
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
             classicPhysicsWorld.renderBody(body, renderAABB, transparency)
-            txt(i, body.position.x, body.position.y, font(5), 'white')
+            // txt(i, body.position.x, body.position.y, font(5), 'white')
         }
     }
 
@@ -1169,8 +1348,8 @@ class classicPhysics {
                 this.density = density;
                 this.restitution = restitution;
                 this.area = area;
-                this.staticFriction = new Lvector2D(0, 0); // -----------------------------------
-                this.dynamicFriction = new Lvector2D(0, 0); // ---------------------------------
+                this.staticFriction = 0.6;
+                this.dynamicFriction = 0.4; 
                 this.isStatic = isStatic;
                 this.collidable = true;
                 this.isTrigger = false;
@@ -1291,7 +1470,6 @@ class classicPhysics {
                 if (this.lockedY) { this.linearVelocity.y = 0; }
                 if (this.lockedAngle) { this.angularVelocity = 0; }
 
-                this.applyFriction(this.staticFriction, deltatime)
                 let newPosition = (vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime)))
                 this.position.x = newPosition.x
                 this.position.y = newPosition.y
@@ -1311,6 +1489,10 @@ class classicPhysics {
             }
 
             setMass(mass) {
+                if(mass == 0){
+                    console.error("RigidBody Error: Can't set a body's mass to 0, make the body static instead")
+                    return 
+                }
                 this.mass = mass;
                 this.invMass = 1 / this.mass;
                 this.inertia = classicPhysics.CalculateRotationalInertia(this);

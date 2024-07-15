@@ -620,7 +620,7 @@ class button {
 		this.clickable = true;
 		this.visible = true;
 		this.selected = false;
-		this.touchPoint = null;
+		this.registeredPointer = null;
 		this.fontSize = 30;
 		this.borderRadius = 20;
 		this.drawingStyle = 1;
@@ -666,7 +666,7 @@ class button {
 			if (this.active && !this.selected && this.clickable) {
 				if (pointIsIn(point, this)) {
 					this.onclick();
-					this.touchPoint = point;
+					this.registeredPointer = point;
 					this.selected = true;
 					++this.clicks;
 					this.lastClickTime = performance.now();
@@ -678,10 +678,10 @@ class button {
 
 		this.autoListen = function () {
 			if (this.active && !this.selected) {
-				let point = Caldro.screen.getFirstPointerIn(this)
+				let point = Caldro.screen.checkForPointerIn(this)
 				if (point) {
 					this.onclick();
-					this.touchPoint = point;
+					this.registeredPointer = point;
 					this.selected = true;
 					++this.clicks;
 					this.lastClickTime = performance.now();
@@ -691,21 +691,28 @@ class button {
 			}
 		};
 
-		this.stopListening = function () {
-			if (this.selected) {
-				this.selected = false;
-				this.onClickEnd();
-				this.touchPoint = null;
+		this.stopListening = function (point) {
+			if (this.active && this.selected && this.clickable) {
+				if (pointIsIn(point, this)) {
+					this.onClickEnd();
+					this.selected = false;
+					this.registeredPointer = point;
+					return true;
+				}
+				return false;
 			}
 		};
 
 		this.autoStopListening = function () {
-			if (this.selected && !Caldro.screen.checkForPointerIn(this)) {
+			if (this.selected && !Caldro.screen.getPointerByID(this.registeredPointer.ID)) {
 				this.selected = false;
 				this.onClickEnd();
-				this.touchPoint = null;
+				this.registeredPointer = null;
+				return true
 			}
+			return false
 		};
+
 
 		this.effect = function () { };
 		this.callback = function () { };

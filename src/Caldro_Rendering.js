@@ -862,6 +862,9 @@ const colorUtils = {
 	},
 	sumTotal(colorObject) {
 		return colorObject.r + colorObject.g + colorObject.b;
+	},
+	rgbaToHex(rgba){
+		return `#${rgba.r.toString(16).padStart(2, '0')}${rgba.g.toString(16).padStart(2, '0')}${rgba.b.toString(16).padStart(2, '0')}${rgba.a.toString(16).padStart(2, '0')}`
 	}
 }
 

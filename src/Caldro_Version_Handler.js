@@ -25,7 +25,7 @@
   "Machine Learning: indroduced the 'geneticInformation' class"
   "Machine Learning: indroduced the 'NeuroEvolution' class"
   "Audio: Added the 'WAAPIaudioManger' class"
-  // "Caldro: Removed 'info.currentKeyStateHandler' and associated functions"
+  "Caldro: Removed 'info.currentKeyStateHandler' and associated functions"
   "Caldro: Removed 'info.currentParticleSystem' and associated functions"
   "Caldro: Removed 'info.currentCamera' and associated functions"
 ""

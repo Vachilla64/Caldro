@@ -180,26 +180,21 @@ function mouseRightDown() { };
 function keyPressHandler() { }
 function keyEndHandler() { }
 
-function adjustPointer(pointer, event){
-	let paddingElement = window.document.body
-	// let paddingElement = event.target
-	// if(event.target.padding){
-		pointer.x -= parseFloat(paddingElement.style.paddingLeft)
-		pointer.y -= parseFloat(paddingElement.style.paddingTop)
-	// }
-	pointerAdjustment(pointer)
-}
 
 function pointerAdjustment() {};
 
+
+
 function init_touch_controls(canvas = c) {
 	canvas.addEventListener('touchstart', function (event) {
+		// console.log((logTouchEvent(event)))
+
 		if (Caldro.events.handleTouchEvents) {
 			event.preventDefault()
 			Caldro.screen.updatePointers(event, "start")
 			pointer.x = event.touches[0].pageX
 			pointer.y = event.touches[0].pageY
-			adjustPointer(pointer, event)
+			pointerAdjustment(pointer, event)
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			touchstartEvent(pointer);
 			pointStartEvent(pointer, "touch")
@@ -225,7 +220,7 @@ function init_touch_controls(canvas = c) {
 			event.preventDefault()
 			Caldro.screen.updatePointers(event, "move")
 			place(pointer, { x: event.changedTouches[0].pageX, y: event.changedTouches[0].pageY })
-			adjustPointer(pointer, event)
+			pointerAdjustment(pointer, event)
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			touchmoveEvent(pointer);
 			pointMoveEvent(pointer, "touch")
@@ -234,11 +229,13 @@ function init_touch_controls(canvas = c) {
 
 
 	canvas.addEventListener('touchend', function (event) {
+		// console.log((logTouchEvent(event)))
+		
 		if (Caldro.events.handleTouchEvents) {
 			event.preventDefault()
 			Caldro.screen.updatePointers(event, "end")
 			place(pointer, { x: event.changedTouches[0].pageX, y: event.changedTouches[0].pageY })
-			adjustPointer(pointer, event)
+			pointerAdjustment(pointer, event)
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			touchendEvent(pointer);
 			pointEndEvent(pointer, "touch")
@@ -271,10 +268,11 @@ function init_mouse_controls(canvas = c) {
 	canvas.addEventListener("mousedown", function (e) {
 		if (Caldro.events.handleMouseEvents) {
 			e.preventDefault();
-			Caldro.screen.addPointer(e.clientX, e.clientY)
+			// Caldro.screen.addPointer(e.clientX, e.clientY)
+			Caldro.screen.updatePointers(e, "start")
 			pointer.x = e.clientX;
 			pointer.y = e.clientY;
-			adjustPointer(pointer, event)
+			pointerAdjustment(pointer, e)
 			// Caldro.info.currentCamera.updatePointer(pointer);
 			if(e.button == 0){
 				mouseLeftDown();
@@ -288,14 +286,16 @@ function init_mouse_controls(canvas = c) {
 
 	canvas.addEventListener("mousemove", function (e) {
 		if (Caldro.events.handleMouseEvents) {
-			let spoint = Caldro.screen.pointers[0]
-			if (spoint) {
-				spoint.x = e.clientX
-				spoint.y = e.clientY
-			}
+			// let spoint = Caldro.screen.pointers[0]
+			// if (spoint) {
+			// 	spoint.x = e.clientX
+			// 	spoint.y = e.clientY
+			// }
+			// console.log(e)
+			Caldro.screen.updatePointers(e, "move")
 			pointer.x = e.clientX;
 			pointer.y = e.clientY;
-			adjustPointer(pointer, event)
+			pointerAdjustment(pointer, e)
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			mousemoveEvent();
 			pointMoveEvent(pointer, "mouse");
@@ -304,10 +304,11 @@ function init_mouse_controls(canvas = c) {
 
 	canvas.addEventListener("mouseup", function (e) {
 		if (Caldro.events.handleMouseEvents) {
-			Caldro.screen.pointers.length = 0
+			// Caldro.screen.pointers.length = 0
+			Caldro.screen.updatePointers(e, "end")
 			pointer.x = e.clientX;
 			pointer.y = e.clientY;
-			adjustPointer(pointer, event)
+			pointerAdjustment(pointer, e)
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			pointEndEvent(pointer, "mouse");
 			mouseupEvent();
@@ -392,9 +393,14 @@ var keyboard = {
 }
 
 function init_controls() {
-	init_touch_controls();
-	init_mouse_controls();
-	init_keyboard_controls();
+	if(!Caldro.events.initializedImputControls){
+		init_touch_controls();
+		init_mouse_controls();
+		init_keyboard_controls();
+		Caldro.events.initializedImputControls = true
+	} else {
+		console.error("Can't init controls more than once")
+	}
 }
 
 // [SID]

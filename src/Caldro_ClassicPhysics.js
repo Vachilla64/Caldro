@@ -32,6 +32,7 @@ class classicPhysicsWorld {
         this.gravity = new Lvector2D(0, 9.81)
         this.bodies = new Array();
         this.joints = new Array();
+        this.epochsPerStep = 1;
         // this.collisionManifolds = new Array();
         this.contactPairs = new Array();
         this.contactPointsList = new Array();
@@ -255,41 +256,46 @@ class classicPhysicsWorld {
 
     step(deltatime, iterations = 1) {
         if (this.isPaused) return;
-        iterations = clip(iterations, classicPhysicsWorld.minIterations, classicPhysicsWorld.maxIterations)
-        deltatime /= iterations;
-        deltatime *= this.time.speedMultiplier;
+        for (let epochCount = 0; epochCount < this.epochsPerStep; ++epochCount) {
 
-        this.contactPointsList.length = 0;
+            iterations = clip(iterations, classicPhysicsWorld.minIterations, classicPhysicsWorld.maxIterations)
+            deltatime /= iterations;
+            deltatime *= this.time.speedMultiplier;
 
-        // for(let trackerID in this.collisionTracking.collisionsList){
-        // let tracker = this.collisionTracking.collisionsList[trackerID]
-        // }
+            this.contactPointsList.length = 0;
 
-        for (let substep = 0; substep < iterations; ++substep) {
-            this.contactPairs.length = 0;
-            this.stepBodies(deltatime, substep, iterations);
-            this.stepJoints(deltatime)
-            this.BroadPhase(deltatime, substep, iterations);
-            this.NarrowPhase(deltatime, substep, iterations);
-        }
+            // for(let trackerID in this.collisionTracking.collisionsList){
+            // let tracker = this.collisionTracking.collisionsList[trackerID]
+            // }
 
-        for (let trackerID in this.collisionTracking.collisionsList) {
-            let tracker = this.collisionTracking.collisionsList[trackerID]
-            if (!tracker.updated) {
-                if (tracker.handleEndEvent) {
-                    tracker.inCollision = false
-                    let bodyA = tracker.bodyA;
-                    let bodyB = tracker.bodyB;
-                    bodyA.onCollisionEnd(bodyB, tracker.manifoldA)
-                    bodyB.onCollisionEnd(bodyA, tracker.manifoldB)
-                    tracker.isNewCollision = true;
-                    tracker.handleEndEvent = false;
-                }
+            for (let substep = 0; substep < iterations; ++substep) {
+                this.contactPairs.length = 0;
+                this.stepBodies(deltatime, substep, iterations);
+                this.stepJoints(deltatime)
+                this.BroadPhase(deltatime, substep, iterations);
+                this.NarrowPhase(deltatime, substep, iterations);
             }
-            // doesn't matter if it was or not, it will be set to false again, for the next frame
-            tracker.updated = false // however this will be able to be checked and found true or not in any of the collision events
+
+            for (let trackerID in this.collisionTracking.collisionsList) {
+                let tracker = this.collisionTracking.collisionsList[trackerID]
+                if (!tracker.updated) {
+                    if (tracker.handleEndEvent) {
+                        tracker.inCollision = false
+                        let bodyA = tracker.bodyA;
+                        let bodyB = tracker.bodyB;
+                        bodyA.onCollisionEnd(bodyB, tracker.manifoldA)
+                        bodyB.onCollisionEnd(bodyA, tracker.manifoldB)
+                        tracker.isNewCollision = true;
+                        tracker.handleEndEvent = false;
+                    }
+                }
+                // doesn't matter if it was or not, it will be set to false again, for the next frame
+                tracker.updated = false // however this will be able to be checked and found true or not in any of the collision events
+            }
+            // console.log(iterations)
+
         }
-        // console.log(iterations)
+        
     }
 
     BroadPhase(deltatime, substep, iterations) {
@@ -363,7 +369,7 @@ class classicPhysicsWorld {
 
                     manifoldA.relativeVelocity = vecMath.subtract(bodyA.linearVelocity, bodyB.linearVelocity)
                     manifoldB.relativeVelocity = vecMath.invert(manifoldA.relativeVelocity)
-                    
+
                     // !===TO DO====! deltatime passed to this funciont is wrong, or at leat will be wrong if the epoch of the world step is greater than 1
                     if (collisionTracker.isNewCollision) {
                         userInfoA = bodyA.onCollisionStart(bodyB, manifoldA)
@@ -1283,7 +1289,7 @@ class classicPhysics {
                 this.oldPosition.copy(this.position)
                 if (this.lockedX) { this.linearVelocity.x = 0; }
                 if (this.lockedY) { this.linearVelocity.y = 0; }
-                if (this.lockedAngle) {this.angularVelocity = 0; }
+                if (this.lockedAngle) { this.angularVelocity = 0; }
 
                 this.applyFriction(this.staticFriction, deltatime)
                 let newPosition = (vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime)))
@@ -1299,7 +1305,7 @@ class classicPhysics {
                 this.force = new Lvector2D(0, 0)
                 this.transformUpdateRequired = true;
                 this.aabbUpdateRequired = true;
-                
+
                 if (!shouldCallCalback) return
                 this.callback();
             }
@@ -1379,6 +1385,9 @@ class classicPhysics {
             setGeneralMaxVelocity(value) {
                 this.linearVelocityCap.maxX = value
                 this.linearVelocityCap.maxY = value
+            }
+            hasTag(tag) {
+                return this.tag.includes(tag);
             }
             setMinVelocityX(value) { this.linearVelocityCap.minX = value }
             setMinVelocityY(value) { this.linearVelocityCap.minY = value }

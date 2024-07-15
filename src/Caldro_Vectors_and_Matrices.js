@@ -34,10 +34,10 @@ class Lvector2D {
     length() {
         return Math.sqrt(this.x ** 2 + this.y ** 2)
     }
-    magnitude(){
+    magnitude() {
         return this.length()
     }
-    magnitudeSqr(){
+    magnitudeSqr() {
         return (this.x ** 2 + this.y ** 2)
     }
     normalize(sourceVector = originVector) {
@@ -46,7 +46,7 @@ class Lvector2D {
         this.x /= mag;
         this.y /= mag;
     }
-    copy(vector){
+    copy(vector) {
         this.x = vector.x;
         this.y = vector.y;
     }
@@ -157,14 +157,6 @@ const vecMath = {
             transform.cos * vector.x - transform.sin * vector.y + transform.positionX,
             transform.sin * vector.x + transform.cos * vector.y + transform.positionY
         )
-
-        let rx = transform.cos * vector.x - transform.sin * vector.y
-        let ry = transform.sin * vector.x + transform.cos * vector.y
-
-        let tx = rx + transform.positionX
-        let ty = ry + transform.positionY
-
-        return new Lvector2D(tx, ty)
 
     },
     copy(vector) {

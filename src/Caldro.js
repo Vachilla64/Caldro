@@ -3,7 +3,7 @@
 /* var CaldroCam = new camera();
 var CaldroPs = new particleSystem();
 var CaldroKeys = new keyStateHandler(); */
-var CaldroKeys = new keyStateHandler(); 
+var CaldroKeys = new keyStateHandler();
 
 
 
@@ -33,10 +33,10 @@ var Caldro = {
 			let deltatime = now - ct.previousFrame
 			ct.previousFrame = now
 			ct._lastUpdateElapsedTime += deltatime
-			
+
 			if (ct._maxFPS) {
 				if ((ct._lastUpdateElapsedTime < 1 / ct._maxFPS)) {
-				// if ((deltatime < 1 / ct._maxFPS)) {
+					// if ((deltatime < 1 / ct._maxFPS)) {
 					return false;
 				}
 				ct._lastUpdateElapsedTime = 0
@@ -123,6 +123,7 @@ var Caldro = {
 	},
 
 	renderer: {
+		initializedImputControls: false,
 		canvas: c,
 		context: c.getContext("2d"),
 		setRenderingCanvas: function (canvas) {
@@ -171,20 +172,33 @@ var Caldro = {
 	},
 
 	events: {
+		handledEvents: {
+			touchStart: true,
+			touchMove: true,
+			touchEnd: true,
+			mouseLeftDown: true,
+			mouseRightDown: true,
+			mouseMove: true,
+			mouseUp: true,
+			mousescrollDown: true,
+			mousescrollUp: true,
+			keyDown: true,
+			keyUp: true,
+		},
 		handleMouseEvents: true,
 		hnadleTouchSwipeEvents: false,
 		handleTouchEvents: true,
 		handleKeyboardEvents: true,
 		swipeEventDetectionTimeRange: 0.3,
 		swipeEventDetectionDistanceRange: 20,
-		forceMapPointerEventToWindow: function (browserWindow = window) {
-			browserWindow.ontouchstart = browserWindow.onmousedown = function(){
+		forceMapPointerEventToWindow: function (browserWindow = window) { // need to work on this
+			browserWindow.ontouchstart = browserWindow.onmousedown = function () {
 				pointStartEvent();
 			}
-			browserWindow.ontouchmove = browserWindow.onmousemove = function(){
+			browserWindow.ontouchmove = browserWindow.onmousemove = function () {
 				pointMoveEvent();
 			};
-			browserWindow.ontouchend = browserWindow.onmouseup = function(){
+			browserWindow.ontouchend = browserWindow.onmouseup = function () {
 				pointEndEvent();
 			};
 		},
@@ -195,6 +209,7 @@ var Caldro = {
 		pointers: new Array(),
 		checkForPointerIn: function (area) {
 			for (let point of Caldro.screen.pointers) {
+				if(!point) continue
 				if (pointIsIn(point, area)) {
 					return true
 				}
@@ -203,36 +218,125 @@ var Caldro = {
 		},
 		getFirstPointerIn: function (area) {
 			for (let point of Caldro.screen.pointers) {
+				if(!point) continue
 				if (pointIsIn(point, area)) {
 					return point;
 				}
 			}
 			return null;
 		},
+		getPointersIn: function (area) {
+			let pointers = new Array();
+			let foundOne = false
+			for (let point of Caldro.screen.pointers) {
+				if(!point) continue
+				if (pointIsIn(point, area)) {
+					foundOne = true
+					pointers.push(point);
+				}
+			}
+			if (foundOne) return pointers
+			else return foundOne;
+		},
 		addPointer: function (x, y, id = generateRandomId()) {
 			this.pointers.push(new Point2D(x, y))
 		},
+		getPointerByID(ID) {
+			try {
+				let pointer = this.pointer[ID]
+				return pointer
+			} catch {
+				return null
+			}
+		},
 		updatePointers: function (touchEvent, type = "idle") {
-			this.pointers.length = touchEvent.targetTouches.length;
-			for (let touch = 0; touch < touchEvent.targetTouches.length; ++touch) {
-				let point = new Point2D();
-				point.x = touchEvent.targetTouches[touch].pageX
-				point.y = touchEvent.targetTouches[touch].pageY
-				this.pointers[touch] = point
+			// this.pointers.length = touchEvent.targetTouches.length;
+			// for (let touch = 0; touch < touchEvent.targetTouches.length; ++touch) {
+			// 	let point = new Point2D();
+			// 	point.x = touchEvent.targetTouches[touch].pageX
+			// 	point.y = touchEvent.targetTouches[touch].pageY
+			// 	this.pointerAdjustment(point)
+			// 	this.pointers[touch] = point
+			// }
+			// console.log(this.pointers.length)
+			// return
+			let event = touchEvent
+			if (event.changedTouches) {
+				if (type == "start") {
+					const changedTouches = event.changedTouches;
+					for (let i = 0; i < changedTouches.length; i++) {
+						const touch = changedTouches[i];
+						let point = {
+							x: touch.pageX,
+							y: touch.pageY,
+							ID: touch.identifier
+						};
+						this.pointerAdjustment(point)
+						this.pointers[touch.identifier] = point
+					}
+				} else if (type == "move") {
+					const changedTouches = event.changedTouches;
+					for (let i = 0; i < changedTouches.length; i++) {
+						const touch = changedTouches[i];
+						let point = this.pointers[touch.identifier];
+						if (point) {
+							point.x = touch.pageX;
+							point.y = touch.pageY;
+						}
+						this.pointerAdjustment(point)
+					}
+				} else if (type == "end") {
+					const changedTouches = event.changedTouches;
+					for (let i = 0; i < changedTouches.length; i++) {
+						const touch = changedTouches[i];
+						if (this.pointers[touch.identifier]) {
+							delete this.pointers[touch.identifier];
+							// console.log(`Touch ${touch.identifier} ended`);
+						}
+					}
+				}
+			} else {
+				// console.log(touchEvent)
+				if (type == "start") {
+					const touch = touchEvent;
+					let point = {
+						x: touch.pageX,
+						y: touch.pageY,
+						ID: touch.button
+					};
+					this.pointerAdjustment(point)
+					this.pointers[touch.button] = point
+				} else if (type == "move") {
+					const touch = touchEvent;
+					let point = this.pointers[touch.button];
+					if (point) {
+						point.x = touch.clientX;
+						point.y = touch.clientY;
+					} else {
+						point = {
+							x: touch.pageX,
+							y: touch.pageY,
+							ID: touch.button
+						};
+					}
+					this.pointerAdjustment(point)
+					this.pointers[touch.button] = point
+				} else if (type == "end") {
+					const touch = touchEvent
+					if (this.pointers[touch.button]) {
+						delete this.pointers[touch.button];
+						// console.log(`Touch ${touch.identifier} ended`);
+					}
+				}
 			}
-			if (type == "start") {
 
-			} else if (type == "move") {
-
-			} else if (type == "end") {
-
-			}
 		},
 		showPointers: function () {
 			for (let point of this.pointers) {
 				cordShow(point)
 			}
-		}
+		},
+		pointerAdjustment: function () { }
 	},
 
 	debug(info, source = "Annonymous") {
@@ -284,16 +388,14 @@ var Caldro = {
 
 	},
 
-	auto: {
-		layout: {
-			updateLayouts: NULLFUNCTION,
-			updateButtons: function () {
+	layout: {
+		updateLayouts: NULLFUNCTION,
+		updateButtons: function () {
 
-			},
-			updateJoysticks: function () {
+		},
+		updateJoysticks: function () {
 
-			},
-		}
+		},
 	},
 
 	show: function () {
@@ -314,7 +416,12 @@ var Caldro = {
 	},
 	init() {
 		this.renderer._pixelatorCanvasContext = this.renderer._pixelatorCanvas.getContext("2d")
-		init_controls();
+		try {
+			init_controls();
+			Caldro.events.initializedImputControls = true
+		} catch {
+			console.error("Controls could not be initalized, try manually initiallzing in this page")
+		}
 	}
 }
 Caldro.init();
@@ -327,6 +434,6 @@ const CALDRO_INFINITE_LOOP = function () {
 	MainLoop()
 }
 
-if(onCaldroLoad){
+if (onCaldroLoad) {
 	onCaldroLoad();
 }

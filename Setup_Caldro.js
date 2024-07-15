@@ -1,50 +1,71 @@
 "use strict";
 // "--allow-file-access-from-files"
 
-console.log(`loading Caldro...`)
+console.log(`Loading Caldro...`);
 
-var Caldro_files =
-	[
-		"Caldro_Version_Handler.js",
-		"Caldro_DOM_manipulation.js",
-		"Caldro_Files.js",
-		"Caldro_Math.js",
-		"Caldro_Physics_Utilities.js",
-		"Caldro_Physics.js",
-		"Caldro_classicPhysics.js",
-		"Caldro_Utility_Constants.js",
-		"Caldro_Utility_Functions.js",
-		"Caldro_LocalStorage.js",
-		"Caldro_Vectors_and_Matrices.js",
-		"Caldro_Image_Canvas_Manager.js",
-		"Caldro_Rendering.js",
-		"Caldro_Renderers.js",
-		"Caldro_Audio.js",
-		"Caldro_Animation.js",
-		"Caldro_Machine_Learning.js",
-		"Caldro_Genetic_Algorithm.js",
-		"Caldro_SpecialObjects.js",
-		"Caldro_Controls.js",
-		// "Caldro_GameObject.js",
-		"Caldro.js",
-	];
+var Caldro_files = [
+    "Caldro_Version_Handler.js",
+    "Caldro_DOM_manipulation.js",
+    "Caldro_Files.js",
+    "Caldro_Math.js",
+    "Caldro_Physics_Utilities.js",
+    "Caldro_Physics.js",
+    "Caldro_ClassicPhysics.js",
+    "Caldro_Utility_Constants.js",
+    "Caldro_Utility_Functions.js",
+    "Caldro_LocalStorage.js",
+    "Caldro_Vectors_and_Matrices.js",
+    "Caldro_Image_Canvas_Manager.js",
+    "Caldro_Rendering.js",
+    "Caldro_Renderers.js",
+    "Caldro_Audio.js",
+    "Caldro_Animation.js",
+    "Caldro_Machine_Learning.js",
+    "Caldro_Genetic_Algorithm.js",
+    "Caldro_SpecialObjects.js",
+    "Caldro_Controls.js",
+    // "Caldro_GameObject.js",
+    "Caldro.js",
+];
 
 localStorage.setItem("Caldro_files", JSON.stringify(Caldro_files));
-var fileSrcPrefix = "../Caldro"
-var fileLoadInterval = 30
+var fileSrcPrefix = "../Caldro/src";
 
-for (let i = 0; i <= Caldro_files.length; ++i) {
-	if(i == Caldro_files.length){
-		console.log("Setup comeplete!");
-		break;
-	}
-	setTimeout(()=>{
-		let scriptFile = document.createElement("script");
-		let fileSrc = fileSrcPrefix + "/" + Caldro_files[i];
-		scriptFile.src = fileSrc;
-		scriptFile.defer = true;
-		document.body.appendChild(scriptFile);
-	}, i*fileLoadInterval)
-};
+function _loadScript(url, onload, onerror) {
+    let scriptFile = document.createElement("script");
+    scriptFile.src = url + `?t=${new Date().getTime()}`; // Prevent caching
+    scriptFile.defer = true;
+    scriptFile.type = "application/javascript";
+    scriptFile.onload = onload;
+    scriptFile.onerror = onerror || function() {
+        console.error(`Failed to load script: ${url}`);
+    };
+    document.body.appendChild(scriptFile);
+}
 
-console.log("Setting up Caldro...")
+function loadScriptFiles(FileArray, dirPrefix = '', callback) {
+    let i = -1;
+    function recursiveLoad() {
+        ++i;
+        if (i >= FileArray.length) {
+            if (callback) callback();
+            return;
+        }
+        try {
+            _loadScript(dirPrefix + FileArray[i], recursiveLoad, () => {
+                // Stop further loading if an error occurs
+                console.error(`Failed to load script: ${dirPrefix + FileArray[i]}`);
+                return;
+            });
+        } catch {
+            console.error(`Failed to load script: ${dirPrefix + FileArray[i]}`);
+        }
+    }
+    recursiveLoad();
+}
+
+loadScriptFiles(JSON.parse(localStorage.getItem("Caldro_files")), "../Caldro/src/", () => {
+    console.log("Caldro files loaded");
+});
+
+// console.log("Setting up Caldro...");

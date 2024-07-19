@@ -1,19 +1,20 @@
-"use strict"; // Utility_Constants
+// Utility_Constants
+import { Point2D } from "./Caldro_Physics";
 
-const CALDGRAY = "rgba(20, 20, 20, 1)"
-const CALDGREY = CALDGRAY;
-const CALDRED = "rgba(80, 10, 20, 1)"
-const CALDBLUE = "rgba(20, 20, 40, 1)"
-const CALDGREEN = "rgba(20, 60, 20, 1)"
+export const CALDGRAY = "rgba(20, 20, 20, 1)"
+export const CALDGREY = CALDGRAY;
+export const CALDRED = "rgba(80, 10, 20, 1)"
+export const CALDBLUE = "rgba(20, 20, 40, 1)"
+export const CALDGREEN = "rgba(20, 60, 20, 1)"
 
-const ORIGIN = new Point2D(0, 0);
-const INFINITY = Infinity;
-const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
-const NUMBERS = "0123456789".split('')
+export const ORIGIN = new Point2D(0, 0);
+export const INFINITY = Infinity;
+export const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
+export const NUMBERS = "0123456789".split('')
 
-const NULLFUNCTION = function(){};
+export const NULLFUNCTION = function(){};
 
-const ANIMATION = {
+export const ANIMATION = {
 
     REPEAT_TYPES: {
         PING_PONG_ONCE: 1,

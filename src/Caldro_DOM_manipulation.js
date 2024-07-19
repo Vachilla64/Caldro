@@ -1,20 +1,22 @@
-"use strict"; // DOM_Manipulation
+ // DOM_Manipulation
+
+
 
 document.body.style.margin = "0px";
 document.body.style.padding = "0px";
 document.body.style.userSelect = "none";
 
 
-function setPageTitle(title){
+export function setPageTitle(title){
 	document.title = title;
 }
 
-function get(id) {
+export function get(id) {
 	return document.getElementById(id);
 };
 
 
-function fullscreen(id = "Caldro_Canvas") {
+export function fullscreen(id = "Caldro_Canvas") {
 	var elem = get(id)
 	if (elem.requestFullscreen) {
 		elem.requestFullscreen();
@@ -30,7 +32,7 @@ function fullscreen(id = "Caldro_Canvas") {
 	}
 }
 
-function createCanvas(addToDOM = false, id = undefined, width = window.innerWidth, height = window.innerHeight) {
+export function createCanvas(addToDOM = false, id = undefined, width = window.innerWidth, height = window.innerHeight) {
 	let canv = document.createElement('canvas');
 	canv.context = canv.getContext("2d")
 	if (id) {
@@ -50,7 +52,7 @@ function createCanvas(addToDOM = false, id = undefined, width = window.innerWidt
 	return canv;
 };
 
-function createMainCanvas(addToDOM = false, id = undefined, width = window.innerWidth, height = window.innerHeight) {
+export function createMainCanvas(addToDOM = false, id = undefined, width = window.innerWidth, height = window.innerHeight) {
 	let canv = document.createElement('canvas');
 	canv.context = canv.getContext("2d")
 	if (id) {
@@ -70,7 +72,7 @@ function createMainCanvas(addToDOM = false, id = undefined, width = window.inner
 
 
 // Function to determine detailed device information
-function getDeviceInfo() {
+export function getDeviceInfo() {
     const ua = navigator.userAgent;
     let deviceInfo = {
         device: "Unknown",
@@ -117,7 +119,7 @@ function getDeviceInfo() {
 }
 
 // Function to check if the device is mobile or PC
-function isMobileDevice() {
+export function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
@@ -125,7 +127,7 @@ function isMobileDevice() {
 // console.log(getDeviceInfo());
 // console.log("Is mobile device:", isMobileDevice());
 
-function cloneEvent(event) {
+export function cloneEvent(event) {
     const clonedEvent = new Event(event.type, event);
     for (const key in event) {
 		try {
@@ -137,7 +139,7 @@ function cloneEvent(event) {
     return clonedEvent;
 }
 
-function logPointerEvent(event) {
+export function logPointerEvent(event) {
     const eventSnapshot = {
         type: event.type,
         timeStamp: event.timeStamp,
@@ -167,7 +169,7 @@ function logPointerEvent(event) {
     return (eventSnapshot);
 }
 
-function logTouchEvent(event) {
+export function logTouchEvent(event) {
     const touchListToArray = (touchList) => {
         const touchesArray = [];
         for (let i = 0; i < touchList.length; i++) {

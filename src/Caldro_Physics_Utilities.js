@@ -1,6 +1,8 @@
-"use strict"; // Physics_Utilities
+// Physics_Utilities
+import { tanInverse } from "./Caldro_Math";
+import { radToDeg, degToRad } from "./Caldro_Math";
 
-function collided(a, b, type = 'aabb') {
+export function collided(a, b, type = 'aabb') {
 	if (type == 'aabb') {
 		let ax = a.x - a.width / 2;
 		let ay = a.y - a.height / 2;
@@ -18,7 +20,7 @@ function collided(a, b, type = 'aabb') {
 	}
 }
 
-function pointIsIn(point, object, typeOfObject = "box") {
+export function pointIsIn(point, object, typeOfObject = "box") {
 	if (typeOfObject.includes("box")) {
 		return (
 			point.x >= object.x - object.width / 2 &&
@@ -30,11 +32,11 @@ function pointIsIn(point, object, typeOfObject = "box") {
 };
 
 
-function pointIsInCirle(point, circle) {
+export function pointIsInCirle(point, circle) {
 	return dist2D(point, circle) < circle.radius;
 }
 
-function castRay(originX = 0, originY = 0, angle = 0, length = 1){
+export function castRay(originX = 0, originY = 0, angle = 0, length = 1){
 	angle = degToRad(angle) - Math.PI/2;
 	return {
 		x: originX+(length*Math.cos(angle)),
@@ -42,7 +44,8 @@ function castRay(originX = 0, originY = 0, angle = 0, length = 1){
 	}
 }
 
-function angleBetweenPoints(referencePoint, point2){
+export function angleBetweenPoints(referencePoint, point2){
+	if(!referencePoint || !point2) return
     if(referencePoint.x == point2.x){
         if(referencePoint.y > point2.y){
            return 0;
@@ -73,16 +76,8 @@ function angleBetweenPoints(referencePoint, point2){
 }
 
 
-
-
-
-
-
-
-
-
 //OBJECT MOTIOIN
-function addFriction(who, friction, deltatime) {
+export function addFriction(who, friction, deltatime) {
 	let fric = [];
 	fric[0] = 1 / (1 + (deltatime * friction[0]));
 	fric[1] = 1 / (1 + (deltatime * friction[1]));
@@ -91,13 +86,13 @@ function addFriction(who, friction, deltatime) {
 	fric = null;
 }
 
-function applyFriction(who, friction, deltatime) {
+export function applyFriction(who, friction, deltatime) {
 	who.x *= 1 / (1 + (deltatime * friction.x));
 	who.y *= 1 / (1 + (deltatime * friction.y));
 	// who.z *= 1 / (1 + (deltatime * friction.z));
 }
 
-function getBounds(what) {
+export function getBounds(what) {
 	let bounds = {
 		x: what.x,
 		y: what.y,
@@ -115,7 +110,7 @@ function getBounds(what) {
 	return bounds;
 }
 
-function platformize(player, platform) {
+export function platformize(player, platform) {
 	if (collided(player, platform, 'aabb')) {
 		let a = getBounds(player);
 		let b = getBounds(platform);
@@ -152,7 +147,7 @@ function platformize(player, platform) {
 	return player.falling;
 }
 
-function limitBoxWithinBox(box, area) {
+export function limitBoxWithinBox(box, area) {
     if (box.x - box.width / 2 < area.x - area.width/2) {
         box.x = box.width / 2 + area.x - area.width/2
     } else if (box.x + box.width / 2 > area.x + area.width/2) {
@@ -168,7 +163,7 @@ function limitBoxWithinBox(box, area) {
 
 
 // Rendeing Aids
-function renderRectBody(body, fill = "white"){
+export function renderRectBody(body, fill = "white"){
 	let color = body.color
 	if(fill){
 		color = fill;

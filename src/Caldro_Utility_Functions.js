@@ -1,13 +1,13 @@
 "use strict"; // Utility_Functions
 
-const doings = {
+export const doings = {
 	ids: [],
 	tasks: [],
 };
-function getTask(id) {
+export function getTask(id) {
 	return doings.tasks[id];
 }
-function doTask(id, what = function () { }, onlyIf = true, maxCallCount = 1, frequency = null) {
+export function doTask(id, what = function () { }, onlyIf = true, maxCallCount = 1, frequencyInMS = null) {
 	if (onlyIf) {
 		let newTask = doings.ids.includes(id);
 		let condition = !newTask;
@@ -17,7 +17,7 @@ function doTask(id, what = function () { }, onlyIf = true, maxCallCount = 1, fre
 			doings.tasks[id] = {
 				calls: 1,
 				performed: 1,
-				frequency: frequency,
+				frequencyInMS: frequencyInMS,
 				id: id,
 				maxCallCount: maxCallCount,
 				passedTime: 0,
@@ -29,8 +29,8 @@ function doTask(id, what = function () { }, onlyIf = true, maxCallCount = 1, fre
 			if (task.performed < task.maxCallCount) {
 				let time = window.performance.now();
 				let task = doings.tasks[id];
-				if (task.frequency) {
-					if ((time - task.timeOFLastCall) < task.frequency) {
+				if (task.frequencyInMS) {
+					if ((time - task.timeOFLastCall) < task.frequencyInMS) {
 						return;
 					}
 				}
@@ -44,7 +44,7 @@ function doTask(id, what = function () { }, onlyIf = true, maxCallCount = 1, fre
 	return onlyIf;
 }
 
-function clearDoTask(id = 'Vachila64') {
+export function clearDoTask(id = 'Vachila64') {
 	for (let i in doings.ids) {
 		if (doings.ids[i] == id) {
 			doings.ids.splice(i, 1)
@@ -55,19 +55,17 @@ function clearDoTask(id = 'Vachila64') {
 	return false;
 }
 
-function clearAllTasks() {
+export function clearAllTasks() {
 	doings.ids.length = doings.tasks.length = 0;
 }
 
-function getDoTask(id) {
+export function getDoTask(id) {
 	return doings.tasks[id];
 }
 
 
-
-
 let timedTasks = new Array();
-function timeoutTask(task, timeout, oneshotTask = true) {
+export function timeoutTask(task, timeout, oneshotTask = true) {
 	let Task = {
 		task: task,
 		timeout: timeout / 1000,
@@ -77,12 +75,12 @@ function timeoutTask(task, timeout, oneshotTask = true) {
 	timedTasks.push(Task)
 	return Task;
 }
-function deleteTimeoutTask(task){
+export function deleteTimeoutTask(task){
 	timedTasks = timedTasks.filter((Task) => {
 		return task != Task
 	})
 }
-function updateTimedTasks() {
+export function updateTimedTasks() {
 	for (let task of timedTasks) {
 		task.time += Caldro.time.deltatime;
 		if (task.time > task.timeout) {
@@ -100,7 +98,7 @@ function updateTimedTasks() {
 
 
 
-let secMap = {
+export var secMap = {
 	second: 1
 }
 secMap["minute"] = 60
@@ -110,7 +108,7 @@ secMap["week"] = 7 * secMap.day;
 secMap["month"] = 30 * secMap.week;
 secMap["year"] = 12 * secMap.month;
 
-var timeMap = [
+export var timeMap = [
 	{
 		name: "second",
 		valueInSeconds: 1
@@ -142,7 +140,7 @@ var timeMap = [
 ]
 
 
-function secondsToTime(amountOfSeconds, showAll = false) {
+export function secondsToTime(amountOfSeconds, showAll = false) {
 	let secondsLeft = amountOfSeconds;
 	let timeObject = {seconds:0}
 	for (let i = timeMap.length - 1; i >= 0; --i) {
@@ -154,7 +152,7 @@ function secondsToTime(amountOfSeconds, showAll = false) {
 	return timeObject
 }
 
-function timeToSeconds(seconds = 0, minutes = 0, hours = 0, days = 0, weeks = 0, months = 0, years = 0) {
+export function timeToSeconds(seconds = 0, minutes = 0, hours = 0, days = 0, weeks = 0, months = 0, years = 0) {
 	let totalSeconds = 0;
 	totalSeconds += seconds
 	totalSeconds += minutes * secMap["minute"]
@@ -177,10 +175,7 @@ function counter(min = 0, max = 10, elapsedTime = Caldro.time.elapsedTime){
 
 
 
-
-
-
-function generateRandomId(model = "XXXXXXXX-XXXX-4XXX-"+['8','9','a','b'][Math.round(Math.random()*3)]+"XXX-XXXXXXXXXXXX", combinations = "0/1/2/3/4/5/6/7/8/9/a/b/c/d/e/f") {
+export function generateRandomId(model = "XXXXXXXX-XXXX-4XXX-"+['8','9','a','b'][Math.round(Math.random()*3)]+"XXX-XXXXXXXXXXXX", combinations = "0/1/2/3/4/5/6/7/8/9/a/b/c/d/e/f") {
 	let id = model;
 	let hex = combinations.split('/')
 	id = id.replace(/X/g, () => {
@@ -189,10 +184,8 @@ function generateRandomId(model = "XXXXXXXX-XXXX-4XXX-"+['8','9','a','b'][Math.r
 	return id
 }
 
-/**
- * Returns A 32 bit UUID string.
- */
-function psuedoUUID() {
+
+export function psuedoUUID() {
 	let id = "XXXXXXXX-XXXX-4XXX-"+['8','9','a','b'][Math.round(Math.random()*3)]+"XXX-XXXXXXXXXXXX";
 	let hex = "0123456789abcdef".split('')
 	id = id.replace(/X/g, () => {
@@ -206,11 +199,11 @@ function psuedoUUID() {
  * @param {*Number} percentageSuccess A number between 0 - 100
  * @returns {*boolean} Either true or false depending on the percentage Sussess
  */
-function chance(percentageSuccess = 50) {
+export function chance(percentageSuccess = 50) {
 	return (Math.random()) <= percentageSuccess * 0.01
 }
 
-function greater(valuesToCompare){
+export function greater(valuesToCompare){
 	let max = -INFINITY
 	for (let i = 0; i < arguments.length; ++i) {
 		max = Math.max(max, arguments[i])
@@ -218,7 +211,7 @@ function greater(valuesToCompare){
 	return max
 }
 
-function lesser(valuesToCompare){
+export function lesser(valuesToCompare){
 	let min = INFINITY
 	for (let i = 0; i < arguments.length; ++i) {
 		min = Math.min(min, arguments[i])
@@ -228,7 +221,7 @@ function lesser(valuesToCompare){
 
 let heavy;
 function startHeavyTask(magnitude = 100){
-	clearTimeout(heavy)
+	if(heavy)clearTimeout(heavy);
 	heavy = setInterval(()=>{
 		for(let i = 0; i < magnitude; ++i){
 			let num = 0;
@@ -244,11 +237,11 @@ function stopHeavyTask(){
 
 
 
-function getConstructorName(object) {
+export function getConstructorName(object) {
 	return object.__proto__.constructor.name;
 }
 
-function checkNaN(value = 0, setToIfNaN = true, logMessage = null) {
+export function checkNaN(value = 0, setToIfNaN = true, logMessage = null) {
 	if (typeof value != "number") {
 		if (logMessage != null) {
 			console.log(logMessage);
@@ -288,19 +281,9 @@ ts.chainTasks([
 
 
 //==========//
-function animateButton(button, change = 0.2, delay = 100) {
-	let Cwidth = button.width * change
-	let Cheight = button.height * change
-	button.width -= Cwidth
-	button.height -= Cheight
-	setTimeout(function () {
-		button.width += Cwidth;
-		button.height += Cheight;
-	}, delay)
-}
 
 
-function timeTask(task = NULLFUNCTION) {
+export function timeTask(task = NULLFUNCTION) {
 	if (typeof task != "function") return false;
 	let startTime = performance.now();
 	task();
@@ -309,11 +292,11 @@ function timeTask(task = NULLFUNCTION) {
 
 
 // primitve utilities
-function typeMatch(primitive, arrayOfTypes) {
+export function typeMatch(primitive, arrayOfTypes) {
 	return arrayOfTypes.includes(typeof primitive)
 }
 
-function matchType(primitiveType, arrayOfPrimitives) {
+export function matchType(primitiveType, arrayOfPrimitives) {
 	for (let primitive of arrayOfPrimitives) {
 		if (typeof primitive == primitiveType) {
 			return true;
@@ -322,14 +305,14 @@ function matchType(primitiveType, arrayOfPrimitives) {
 	return false;
 }
 
-function randomNumber(minimumNumber = 0, maximumNumber = 1, float = true, exacc = false) {
+export function randomNumber(minimumNumber = 0, maximumNumber = 1, float = true, exacc = false) {
 	let number = minimumNumber + (Math.random() * (maximumNumber - minimumNumber))
 	if (!float) number = Math.round(number);
 	if (exacc) return choose([minimumNumber, maximumNumber])
 	return number;
 }
 
-function limit(what, lowThreshold, highThreshold, setToIfLow = null, setToIfHigh = null) {
+export function limit(what, lowThreshold, highThreshold, setToIfLow = null, setToIfHigh = null) {
 	if (what < lowThreshold && lowThreshold != null) {
 		what = setToIfLow != null ? setToIfLow : lowThreshold;
 	} else if (what > highThreshold && highThreshold != null) {
@@ -338,36 +321,32 @@ function limit(what, lowThreshold, highThreshold, setToIfLow = null, setToIfHigh
 	return what;
 }
 
-function withinRange(number = 0, mininmumNumber = 0, maximumNumber = 1) {
+export function withinRange(number = 0, mininmumNumber = 0, maximumNumber = 1) {
 	if (number >= mininmumNumber && number <= maximumNumber) return true;
 	return false;
 }
 
-function dist(ax, ay, bx, by) {
-	return Math.sqrt(Math.abs(ax - bx) ** 2 + Math.abs(ay - by) ** 2)
-}
-
-function dist2D(a, b) {
+export function dist2D(a, b) {
 	return Math.sqrt(Math.abs(a.x - b.x) ** 2 + Math.abs(a.y - b.y) ** 2)
 }
 
-function place(who, where) {
-	if (who != undefined && where != undefined) {
-		who.x = where.x
-		who.y = where.y
+export function place(point, target) {
+	if (point != undefined && target != undefined) {
+		point.x = target.x
+		point.y = target.y
 	} else {
-		console.error("A variable passed to the function 'place' is udefinded\nWho:" + who + "\n" + "Where: " + where)
+		console.error("A variable passed to the function 'place' is udefinded\nPoint:" + point + "\n" + "Where: " + target)
 	}
 }
 
-function getRandomPointIn(x, y, width, height, precise = true) {
+export function getRandomPointIn(x, y, width, height, precise = true) {
 	return {
 		x: x + randomNumber(-width / 2, width / 2, precise),
 		y: y + randomNumber(-height / 2, height / 2, precise)
 	}
 }
 
-function closest(who, array) {
+export function closest(who, array) {
 	let closest = array[0]
 	if (closest != undefined) {
 		for (let l = 0; l < array.length; ++l) {
@@ -381,7 +360,7 @@ function closest(who, array) {
 	}
 }
 
-function linspace(start, end, amount = 10) {
+export function linspace(start, end, amount = 10) {
 	let array = new Array();
 	if (amount < 2) {
 		return n === 1 ? [start] : [];
@@ -397,7 +376,7 @@ function linspace(start, end, amount = 10) {
 
 
 // Array Utilities
-function arraySum(array) {
+export function arraySum(array) {
 	let sum = 0;
 	for (let i = 0; i < array.length; ++i) {
 		sum += array[i]
@@ -405,7 +384,7 @@ function arraySum(array) {
 	return sum;
 }
 
-function arrayMax(array) {
+export function arrayMax(array) {
 	let max = -INFINITY
 	for (let i = 0; i < array.length; ++i) {
 		max = Math.max(max, array[i])
@@ -413,6 +392,6 @@ function arrayMax(array) {
 	return max
 }
 
-function choose(array) {
+export function choose(array) {
 	return array[randomNumber(0, array.length - 1, false)]
 }

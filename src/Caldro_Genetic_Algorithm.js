@@ -1,6 +1,6 @@
 "use strict" // Genetic_Algorithms
 
-class geneticInformation {
+export class geneticInformation {
     constructor(score, fitness, brain) {
         this.score = score;
         this.fitness = fitness;
@@ -15,7 +15,7 @@ class geneticInformation {
     }
 }
 
-class NeuroEvolution {
+export class NeuroEvolution {
     constructor(initialNeuralNetworkModel, populationSize = 100) {
         this.populationSize = populationSize;
         this.generation = 1;

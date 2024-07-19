@@ -1,83 +1,14 @@
-"use strict"; // Controls
-
-// [CO]
-function dPad(x, y, size) {
-	this.x = x;
-	this.y = y;
-	this.width = size;
-	this.height = size;
-	this.size = size;
-	this.margin = size / 3;
-	this.value = 0;
-	let value = 0;
-	let innerColor = 'grey';
-
-	let up = this.up = new button(this.x, this.y - this.margin, this.margin, this.margin, '⬆️');
-	this.up.effect = function () {
-		value = 2;
-		up.color = 'white';
-		up.dolater(10, function () {
-			up.color = innerColor;
-		});
-	};
-
-	let down = this.down = new button(this.x, this.y + this.margin, this.margin, this.margin, '⬇️');
-	this.down.effect = function () {
-		value = 8;
-		down.color = 'white';
-		down.dolater(10, function () {
-			down.color = innerColor;
-		});
-	};
-
-	let left = this.left = new button(this.x - this.margin, this.y, this.margin, this.margin, '⬅️')
-	this.left.effect = function () {
-		value = 4;
-		left.color = 'white';
-		left.dolater(10, function () {
-			left.color = innerColor;
-		});
-	};
-
-	let right = this.right = new button(this.x + this.margin, this.y, this.margin, this.margin, '➡️');
-	this.right.effect = function () {
-		value = 6;
-		right.color = 'white';
-		right.dolater(10, function () {
-			right.color = innerColor;
-		});
-	};
-
-	this.buttons = [this.up, this.down, this.left, this.right];
-
-	this.update = function (tap = null) {
-		value = this.value = 0;
-		this.margin = this.size / 3;
-		this.up.position(this.x, this.y - this.margin, this.margin, this.margin);
-		this.down.position(this.x, this.y + this.margin, this.margin, this.margin);
-		this.left.position(this.x - this.margin, this.y, this.margin, this.margin);
-		this.right.position(this.x + this.margin, this.y, this.margin, this.margin);
-		for (let i = 0; i < this.buttons.length; ++i) {
-			this.buttons[i].fontSize = this.margin;
-			if (tap != null) {
-				this.buttons[i].listen(tap);
-				this.value = value;
-			};
-		};
-		return this.value;
-	}
-
-	this.render = function () {
-		for (let i = 0; i < this.buttons.length; ++i) {
-			glow(0);
-			this.buttons[i].drawingStyle = 2;
-			this.buttons[i].render();
-		};
-	}
-}
+// Controls
+import { generateRandomId } from "./Caldro_Utility_Functions";
+import { timer } from "./Caldro_SpecialObjects";
+import Caldro from "./Caldro";
+import { c, getCanvas } from "./Caldro_Canvas";
+import { NULLFUNCTION } from "./Caldro_Utility_Constants";
+import { place } from "./Caldro_Utility_Functions";
+import { cosine } from "./Caldro_Math";
 
 // [SID]
-class Joystick {
+export class Joystick {
 	constructor(x = 0, y = 0, radius = 10, knobRadius = 4, color) {
 		this.x = x;
 		this.y = y;
@@ -92,7 +23,7 @@ class Joystick {
 			radius: knobRadius,
 			color: color
 		}
-		this.detectionAreaExtension = (this.radius)*0.5;
+		this.detectionAreaExtension = (this.radius) * 0.5;
 	}
 	update(pointer = touchPoint, type = "idle") {
 		if (!this.active) return;
@@ -137,79 +68,103 @@ class Joystick {
 	}
 }
 
-
-class Pointer{
-	constructor(x, y){
-		this.x = x; 
+export class Pointer {
+	constructor(x, y, id) {
+		this.x = x;
 		this.y = y;
 		this.oldX = x;
 		this.oldY = y;
-		this.ID = generateRandomId()
+		this.ID = id
 	}
 }
-var pointer = new Pointer(0, 0)
-var touchSwipeTimer = new timer();
-var touchDoubleTapTimer = new timer();
-var touchDoubleTapCount = 0;
-var touchSwipeStartPoint = new Pointer(0, 0);
 
-function pointStartEvent(pointer, pointerType) { };
-function pointMoveEvent(pointer, pointerType) { };
-function pointEndEvent(pointer, pointerType) { };
-function touchDoubleTapEvent() { };
-function touchstartEvent() { }
+// export let pointer = new Pointer(0, 0)
+const touchSwipeTimer = new timer();
+const touchDoubleTapTimer = new timer();
+let touchDoubleTapCount = 0;
+const touchSwipeStartPoint = new Pointer(0, 0);
 
-function touchmoveEvent() { }
+export var events = {
+	mouseIsDown: false,
+	pointStartEvent() { },
+	pointMoveEvent() { },
+	pointEndEvent() { },
+	mouseMiddleDown(){},
+	mouseScrollUp(){},
+	mouseScrollDown(){},
+}
 
-function touchSwipeUpEvent() { };
-function touchSwipeDownEvent() { };
-function touchSwipeLeftEvent() { };
-function touchSwipeRightEvent() { };
-function touchendEvent() { }
+export function touchDoubleTapEvent() { };
+export function touchstartEvent() { }
 
-function mousedownEvent() { };
-function mousemoveEvent() { };
-function mouseupEvent() { };
+export function touchmoveEvent() { }
 
-function mousescrollUp() { }
-function mousescrollDown() { }
+export function touchSwipeUpEvent() { };
+export function touchSwipeDownEvent() { };
+export function touchSwipeLeftEvent() { };
+export function touchSwipeRightEvent() { };
+export function touchendEvent() { }
 
-function mouseLeftDown() { };
-function mouseRightDown() { };
+export function mousedownEvent() { };
+export function mousemoveEvent() { };
+export function mouseupEvent() { };
 
-function keyPressHandler() { }
-function keyEndHandler() { }
+export function mouseLeftDown() { };
+export function mouseRightDown() { };
 
-
-function pointerAdjustment() {};
-
+export function keyPressHandler() { }
+export function keyEndHandler() { }
 
 
-function init_touch_controls(canvas = c) {
+export function pointerAdjustment() { };
+
+function getPointersFromEvent(event) {
+	let point;
+	if (event.changedTouches) {
+		for (let i = 0; i < event.changedTouches.length; i++) {
+			const touch = event.changedTouches[i];
+			point = {
+				x: touch.pageX,
+				y: touch.pageY,
+				ID: touch.identifier
+			};
+		}
+	} else {
+		point = {
+			x: event.pageX,
+			y: event.pageY,
+		};
+	}
+	return point
+}
+
+export function init_touch_controls(canvas = c) {
 	canvas.addEventListener('touchstart', function (event) {
 		// console.log((logTouchEvent(event)))
 
 		if (Caldro.events.handleTouchEvents) {
 			event.preventDefault()
-			Caldro.screen.updatePointers(event, "start")
-			pointer.x = event.touches[0].pageX
-			pointer.y = event.touches[0].pageY
-			pointerAdjustment(pointer, event)
+			let pointer = Caldro.screen.updatePointers(event, "start")
+
 			// Caldro.info.currentCamera.updatePointer(pointer)
-			touchstartEvent(pointer);
-			pointStartEvent(pointer, "touch")
+			// touchstartEvent(pointer);
+
+			/// call the general event provied when the canvas is touched
+			events.pointStartEvent(pointer, "touch")
+
+			/// handle swipe events start
 			if (Caldro.events.hnadleTouchSwipeEvents) {
 				touchSwipeTimer.setTime(0);
 				place(touchSwipeStartPoint, pointer)
-			}
 
-			if (touchDoubleTapCount == 0) {
-				touchDoubleTapTimer.setTime(0)
-			} else if (touchDoubleTapCount == 1) {
-				if (touchDoubleTapTimer.getCurrentTime() < 1) {
-					touchDoubleTapEvent();
+				if (touchDoubleTapCount == 0) {
+					touchDoubleTapTimer.setTime(0)
+				} else if (touchDoubleTapCount == 1) {
+					if (touchDoubleTapTimer.getCurrentTime() < 1) {
+						touchDoubleTapEvent();
+					}
+					touchDoubleTapCount = 0
 				}
-				touchDoubleTapCount = 0
 			}
 		}
 	}, false)
@@ -218,27 +173,23 @@ function init_touch_controls(canvas = c) {
 	canvas.addEventListener('touchmove', function (event) {
 		if (Caldro.events.handleTouchEvents) {
 			event.preventDefault()
-			Caldro.screen.updatePointers(event, "move")
-			place(pointer, { x: event.changedTouches[0].pageX, y: event.changedTouches[0].pageY })
-			pointerAdjustment(pointer, event)
+			let pointer = Caldro.screen.updatePointers(event, "move")
 			// Caldro.info.currentCamera.updatePointer(pointer)
-			touchmoveEvent(pointer);
-			pointMoveEvent(pointer, "touch")
+			// touchmoveEvent(pointer);
+			events.pointMoveEvent(pointer, "touch")
 		}
 	})
 
 
 	canvas.addEventListener('touchend', function (event) {
 		// console.log((logTouchEvent(event)))
-		
+
 		if (Caldro.events.handleTouchEvents) {
 			event.preventDefault()
-			Caldro.screen.updatePointers(event, "end")
-			place(pointer, { x: event.changedTouches[0].pageX, y: event.changedTouches[0].pageY })
-			pointerAdjustment(pointer, event)
+			let pointer = Caldro.screen.updatePointers(event, "end")
 			// Caldro.info.currentCamera.updatePointer(pointer)
-			touchendEvent(pointer);
-			pointEndEvent(pointer, "touch")
+			// touchendEvent(pointer);
+			events.pointEndEvent(pointer, "touch")
 			if (Caldro.events.hnadleTouchSwipeEvents) {
 				if (touchSwipeTimer.getCurrentTime() < Caldro.events.swipeEventDetectionTimeRange) {
 					let diffX = Math.abs(touchSwipeStartPoint.x - pointer.x)
@@ -264,54 +215,42 @@ function init_touch_controls(canvas = c) {
 	})
 }
 
-function init_mouse_controls(canvas = c) {
-	canvas.addEventListener("mousedown", function (e) {
+export function init_mouse_controls(canvas = c) {
+	canvas.addEventListener("mousedown", function (event) {
 		if (Caldro.events.handleMouseEvents) {
-			e.preventDefault();
-			// Caldro.screen.addPointer(e.clientX, e.clientY)
-			Caldro.screen.updatePointers(e, "start")
-			pointer.x = e.clientX;
-			pointer.y = e.clientY;
-			pointerAdjustment(pointer, e)
-			// Caldro.info.currentCamera.updatePointer(pointer);
-			if(e.button == 0){
-				mouseLeftDown();
-			} else if(e.button == 2){
-				mouseRightDown()
+			if(event.button == 1) {
+				events.mouseMiddleDown();
+				return;
 			}
-			mousedownEvent();
-			pointStartEvent(pointer, "mouse");
+			event.preventDefault();
+			let pointer = Caldro.screen.updatePointers(event, "start")
+			// Caldro.info.currentCamera.updatePointer(pointer);
+			events.mouseIsDown = true
+			events.pointStartEvent(pointer, "mouse");
+			if (event.button == 0) {
+				mouseLeftDown(pointer);
+			} else if (event.button == 2) {
+				mouseRightDown(pointer)
+			}
 		}
 	})
-
-	canvas.addEventListener("mousemove", function (e) {
+	
+	canvas.addEventListener("mousemove", function (event) {
 		if (Caldro.events.handleMouseEvents) {
-			// let spoint = Caldro.screen.pointers[0]
-			// if (spoint) {
-			// 	spoint.x = e.clientX
-			// 	spoint.y = e.clientY
-			// }
-			// console.log(e)
-			Caldro.screen.updatePointers(e, "move")
-			pointer.x = e.clientX;
-			pointer.y = e.clientY;
-			pointerAdjustment(pointer, e)
+			event.preventDefault();
+			let pointer = Caldro.screen.updatePointers(event, "move")
 			// Caldro.info.currentCamera.updatePointer(pointer)
-			mousemoveEvent();
-			pointMoveEvent(pointer, "mouse");
+			events.pointMoveEvent(pointer, "mouse");
 		}
 	})
-
+	
 	canvas.addEventListener("mouseup", function (e) {
 		if (Caldro.events.handleMouseEvents) {
-			// Caldro.screen.pointers.length = 0
-			Caldro.screen.updatePointers(e, "end")
-			pointer.x = e.clientX;
-			pointer.y = e.clientY;
-			pointerAdjustment(pointer, e)
+			event.preventDefault();
+			let pointer = Caldro.screen.updatePointers(e, "end")
 			// Caldro.info.currentCamera.updatePointer(pointer)
-			pointEndEvent(pointer, "mouse");
-			mouseupEvent();
+			events.mouseIsDown = false
+			events.pointEndEvent(pointer, "mouse");
 		}
 	})
 
@@ -319,31 +258,31 @@ function init_mouse_controls(canvas = c) {
 	canvas.addEventListener("mousewheel", function (event) {
 		if (Caldro.events.handleMouseEvents) {
 			if (event.deltaY < 0) {
-				mousescrollUp()
+				events.mouseScrollUp()
 			} else {
-				mousescrollDown();
+				events.mouseScrollDown();
 			}
 		}
 	})
 }
 
-function init_keyboard_controls() {
-	document.addEventListener("keydown", function (event) {
+export function init_keyboard_controls(canvas) {
+	canvas.addEventListener("keydown", function (event) {
 		Caldro.info.currentKeyStateHandler.activateKeyState(event);
 		keyboard.addKey(event)
 		keyPressHandler(event.which)
 	})
 
-	document.addEventListener("keyup", function (event) {
+	canvas.addEventListener("keyup", function (event) {
 		Caldro.info.currentKeyStateHandler.deactivateKeyState(event);
 		keyboard.removeKey(event)
 		keyEndHandler(event.which)
 	})
 }
 
-var keyboard = {
+export var keyboard = {
 	currentKeys: new Array(),
-	isBeingPressed(keyName) { 
+	isBeingPressed(keyName) {
 		let found = false
 		keyName = this.parseKey(keyName)
 		for (let i = 0; i < this.currentKeys.length; ++i) {
@@ -356,7 +295,7 @@ var keyboard = {
 	},
 	addKey(event) {
 		let key = event.key
-		if(this.currentKeys.includes(key)) return;
+		if (this.currentKeys.includes(key)) return;
 		this.currentKeys.push(key)
 	},
 	removeKey(event) {
@@ -378,33 +317,36 @@ var keyboard = {
 			key = "ArrowUp"
 		} else if (key == "down") {
 			key = "ArrowDown"
-		} else if (key == "shift"){
+		} else if (key == "shift") {
 			key = "Shift"
-		} else if (key == "ctrl"){
+		} else if (key == "ctrl") {
 			key = "Control"
-		} else if (key == "alt"){
+		} else if (key == "alt") {
 			key = "Alt"
 		}
 		return key;
 	},
-	keyDict: [
-		"space", ' '
-	]
+	keyDict: {
+		SHIFT: "shift",
+		SPACE: " "
+	}
 }
 
-function init_controls() {
-	if(!Caldro.events.initializedImputControls){
-		init_touch_controls();
-		init_mouse_controls();
-		init_keyboard_controls();
+export function init_controls() {
+	if (!Caldro.events.initializedImputControls) {
+		let canvas = getCanvas();
+		init_touch_controls(canvas);
+		init_mouse_controls(canvas);
+		init_keyboard_controls(canvas);
 		Caldro.events.initializedImputControls = true
 	} else {
 		console.error("Can't init controls more than once")
 	}
 }
 
+
 // [SID]
-class keyStateHandler {
+export class keyStateHandler {
 	constructor() {
 		this.keys = [];
 		this.active = true;
@@ -424,9 +366,9 @@ class keyStateHandler {
 			}
 		}
 	}
-	hitKey(keyinfo){
+	hitKey(keyinfo) {
 		let key = this.getKey(keyinfo)
-		if(key){
+		if (key) {
 			key.onclick();
 		}
 	}
@@ -440,14 +382,14 @@ class keyStateHandler {
 		}
 	}
 	bind = this.addKey;
-	removeKey(keyName){
-		this.keys = this.keys.filter(function(keyL){
-			if(keyL.keyName == keyName){
+	removeKey(keyName) {
+		this.keys = this.keys.filter(function (keyL) {
+			if (keyL.keyName == keyName) {
 				return false
 			} else {
 				return true
 			}
-	})
+		})
 	}
 	getKey(keyInfo) {
 		let key = undefined;
@@ -542,32 +484,32 @@ class keyStateHandler {
 	}
 }
 
-class KeyShortCutHandler{
-    constructor(){
-        this.shortcuts = new Array();
-        let KeyShortCutHandlerPointer = this
-        document.addEventListener("keydown", function (event) {
-            for(let shortcut of KeyShortCutHandlerPointer.shortcuts){
-                if(shortcut.key.toLocaleLowerCase() == event.key.toLocaleLowerCase()){
-                    if(shortcut.ctrl == event.ctrlKey && shortcut.shift == event.shiftKey && shortcut.alt == event.altKey){
-                        event.preventDefault()
-                        shortcut.onPerform()
-                        break;
-                    }
-                }
-            }
-        })
-    }
-    addShortcut(key, onPerform = function(){}, ctrl = false, shift = false, alt = false){
-        let shortcut = {
-            key: key,
-            onPerform: onPerform,
-            ctrl: ctrl,
-            shift: shift,
-            alt: alt
-        }
-        this.shortcuts.push(shortcut)
-    }
+export class KeyShortCutHandler {
+	constructor() {
+		this.shortcuts = new Array();
+		let KeyShortCutHandlerPointer = this
+		document.addEventListener("keydown", function (event) {
+			for (let shortcut of KeyShortCutHandlerPointer.shortcuts) {
+				if (shortcut.key.toLocaleLowerCase() == event.key.toLocaleLowerCase()) {
+					if (shortcut.ctrl == event.ctrlKey && shortcut.shift == event.shiftKey && shortcut.alt == event.altKey) {
+						event.preventDefault()
+						shortcut.onPerform()
+						break;
+					}
+				}
+			}
+		})
+	}
+	addShortcut(key, onPerform = function () { }, ctrl = false, shift = false, alt = false) {
+		let shortcut = {
+			key: key,
+			onPerform: onPerform,
+			ctrl: ctrl,
+			shift: shift,
+			alt: alt
+		}
+		this.shortcuts.push(shortcut)
+	}
 }
 
 var keyAtlas = [
@@ -577,3 +519,4 @@ var keyAtlas = [
 function getKeyName(keyNumber) {
 
 }
+

@@ -1,13 +1,21 @@
-"use strict"; // Rendering
+// Rendering
+import { createMainCanvas } from "./Caldro_DOM_manipulation";
+import { NULLFUNCTION } from "./Caldro_Utility_Constants";
+import Caldro from "./Caldro";
+import { degToRad } from "./Caldro_Math";
+import { c } from "./Caldro_Canvas"
+import { randomNumber } from "./Caldro_Utility_Functions";
+import { CALDGRAY } from "./Caldro_Utility_Constants";
+import { Point2D } from "./Caldro_Physics";
+// In your canvas module (e.g., canvas.js)
 
-"use strict"; // Rendering
 
-var c = createMainCanvas(true, "Caldro_Canvas");
-var cc = c.getContext("2d")
+
+export const cc = c.getContext("2d")
 c.style.position = 'fixed';
 c.onresize = NULLFUNCTION;
 
-function getCanvasDimensions(canvas) {
+export function getCanvasDimensions(canvas) {
 	return {
 		w: canvas.width,
 		h: canvas.height,
@@ -24,11 +32,11 @@ function getCanvasDimensions(canvas) {
 	}
 }
 
-function setImageSmoothing(context = Caldro.renderer.context, state = false) {
+export function setImageSmoothing(context = Caldro.renderer.context, state = false) {
 	context.imageSmoothingEnabled = state
 }
 
-function adjustCanvas(canvas = c, width = window.innerWidth, height = window.innerHeight, aspectRatio = Caldro.display.aspectRatio) {
+export function adjustCanvas(canvas = c, width = window.innerWidth, height = window.innerHeight, aspectRatio = Caldro.display.aspectRatio) {
 	canvas.formerWidth = canvas.width;
 	canvas.formerHeight = canvas.height;
 
@@ -79,7 +87,7 @@ function adjustCanvas(canvas = c, width = window.innerWidth, height = window.inn
 	Caldro.rendering.context.lineJoin = "round"
 };
 
-function adjustCanvasToRatio(w = 1, h = 1) {
+export function adjustCanvasToRatio(w = 1, h = 1) {
 
 }
 
@@ -87,30 +95,30 @@ let renderingInfo = {
 	fill: null
 }
 
-function saveRenderingContext(context = Caldro.rendering.context) {
+export function saveRenderingContext(context = Caldro.rendering.context) {
 	context.save();
 }
 
-function restoreRenderingContext(context = Caldro.rendering.context) {
+export function restoreRenderingContext(context = Caldro.rendering.context) {
 	context.restore();
 }
 
-function clear(x = 0, y = 0, w = c.width, h = c.height) {
+export function clear(x = 0, y = 0, w = c.width, h = c.height) {
 	Caldro.rendering.context.clearRect(x, y, w, h)
 }
 
-function fillColor(color = "skyblue", context = Caldro.rendering.context) {
+export function fillColor(color = "skyblue", context = Caldro.rendering.context) {
 	if (context.fillStyle != color) {
 		context.fillStyle = parseColor(color)
 		// renderingInfo.fill = context.fillStyle;
 	}
 }
 
-function hsl(hue, saturation = 100, lightness = 60) {
+export function hsl(hue, saturation = 100, lightness = 60) {
 	return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-function parseColor(color) {
+export function parseColor(color) {
 	if (!color) return
 	if (typeof color == "string") {
 		return color
@@ -120,32 +128,32 @@ function parseColor(color) {
 	return color;
 }
 
-function strokeColor(color = "skyblue", context = Caldro.rendering.context) {
+export function strokeColor(color = "skyblue", context = Caldro.rendering.context) {
 	if (context.strokeStyle != color) {
 		context.strokeStyle = parseColor(color)
 	}
 }
 
-function rect(x = 0, y = 0, w = c.width, h = c.height, color = CALDGRAY) {
+export function rect(x = 0, y = 0, w = c.width, h = c.height, color = CALDGRAY) {
 	fillColor(color)
 	Caldro.rendering.context.fillRect(x, y, w, h);
 	// rounding down is impractical when things are scaled down lover than 0.5
 	// Caldro.rendering.context.fillRect(x, y, Math.round(w), Math.round(h));
 }
-
+export 
 function strect(x, y, w, h, color, lineWidth) {
 	strokeColor(color);
 	Caldro.rendering.context.lineWidth = lineWidth
 	Caldro.rendering.context.strokeRect(x, y, w, h);
 }
 
-function clrect(x, y, w, h) {
+export function clrect(x, y, w, h) {
 	Caldro.rendering.context.rect(x, y, w, h);
 	Caldro.rendering.context.clip();
 }
 
 
-function chord(x, y, r, theta, angle, fill) {
+export function chord(x, y, r, theta, angle, fill) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.arc(x, y, r, -Math.PI / 2 + degToRad(angle - theta / 2), -Math.PI / 2 + degToRad(angle + theta / 2));
 	Caldro.rendering.context.closePath();
@@ -162,7 +170,7 @@ function sector(x, y, r, theta, angle, fill, lw) {
 	Caldro.rendering.context.fill();
 }
 
-function stAarc(x, y, r, theta, angle, fill, lineWidth = 5) {
+export function stAarc(x, y, r, theta, angle, fill, lineWidth = 5) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.arc(x, y, r, -Math.PI / 2 + degToRad(angle - theta / 2), -Math.PI / 2 + degToRad(angle + theta / 2));
 	Caldro.rendering.context.closePath();
@@ -171,7 +179,7 @@ function stAarc(x, y, r, theta, angle, fill, lineWidth = 5) {
 	Caldro.rendering.context.fill();
 }
 
-function circle(x, y, r, fill) {
+export function circle(x, y, r, fill) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.arc(x, y, r, 0, 2 * Math.PI);
 	Caldro.rendering.context.closePath();
@@ -179,7 +187,7 @@ function circle(x, y, r, fill) {
 	Caldro.rendering.context.fill();
 }
 
-function stCircle(x, y, r, fill, lw) {
+export function stCircle(x, y, r, fill, lw) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.arc(x, y, r, 0, 2 * Math.PI);
 	Caldro.rendering.context.closePath();
@@ -188,14 +196,14 @@ function stCircle(x, y, r, fill, lw) {
 	Caldro.rendering.context.stroke();
 }
 
-function clCircle(x, y, r) {
+export function clCircle(x, y, r) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.arc(x, y, r, 0, 2 * Math.PI);
 	Caldro.rendering.context.closePath();
 	Caldro.rendering.context.clip();
 }
 
-function line(a, b, c, d, col, lw) {
+export function line(a, b, c, d, col, lw) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.moveTo(a, b);
 	Caldro.rendering.context.lineTo(c, d);
@@ -205,7 +213,7 @@ function line(a, b, c, d, col, lw) {
 	Caldro.rendering.context.stroke();
 }
 
-function drawLine(startX, startY, length = 100, angle = 0, color = "skyblue", lineWidth = 2) {
+export function drawLine(startX, startY, length = 100, angle = 0, color = "skyblue", lineWidth = 2) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.moveTo(startX, startY);
 	let rad = degToRad(angle);
@@ -216,13 +224,24 @@ function drawLine(startX, startY, length = 100, angle = 0, color = "skyblue", li
 	Caldro.rendering.context.stroke();
 }
 
-function font(size = 30, font = 'Arial', thickness = "") {
+export function drawRay(origin, length = 100, angle = 0, color = "skyblue", lineWidth = 2) {
+	Caldro.rendering.context.beginPath();
+	Caldro.rendering.context.moveTo(origin.x, origin.y);
+	let rad = degToRad(angle);
+	Caldro.rendering.context.lineTo(origin.x + (length * Math.sin(rad)), (origin.y - (length * Math.cos(rad))))
+	Caldro.rendering.context.closePath();
+	strokeColor(color);
+	Caldro.rendering.context.lineWidth = lineWidth
+	Caldro.rendering.context.stroke();
+}
+
+export function font(size = 30, font = 'Arial', thickness = "") {
 	let fnt = "" + thickness + "" + size + "px " + font;
 	Caldro.rendering.context.font = fnt;
 	return fnt;
 }
 
-function txt(text, x, y, font = '30px Arial', fill = 'skyblue', angle = 0, alignment = "center", baseLine = "middle") {
+export function txt(text, x, y, font = '30px Arial', fill = 'skyblue', angle = 0, alignment = "center", baseLine = "middle") {
 	Caldro.rendering.context.font = font
 	Caldro.rendering.context.textAlign = alignment
 	Caldro.rendering.context.textBaseline = baseLine
@@ -230,7 +249,7 @@ function txt(text, x, y, font = '30px Arial', fill = 'skyblue', angle = 0, align
 	fillText(text, x, y, angle)
 }
 
-function sttxt(text, x, y, font = '30px Arial', fill = 'skyblue', lineWidth = 5, angle = 0, alignment = "center", baseLine = "middle") {
+export function sttxt(text, x, y, font = '30px Arial', fill = 'skyblue', lineWidth = 5, angle = 0, alignment = "center", baseLine = "middle") {
 	Caldro.rendering.context.font = font
 	Caldro.rendering.context.textAlign = alignment
 	Caldro.rendering.context.textBaseline = baseLine
@@ -239,14 +258,14 @@ function sttxt(text, x, y, font = '30px Arial', fill = 'skyblue', lineWidth = 5,
 	strokeText(text, x, y, angle)
 }
 
-function cltxt(text, x, y, font = '30px Arial', fill = 'skyblue', angle = 0, alignment = "center", baseLine = "middle") {
+export function cltxt(text, x, y, font = '30px Arial', fill = 'skyblue', angle = 0, alignment = "center", baseLine = "middle") {
 	Caldro.rendering.context.font = font
 	Caldro.rendering.context.textAlign = alignment
 	Caldro.rendering.context.textBaseline = baseLine
 	Caldro.rendering.context.clip();
 }
 
-function fillText(text, x, y, angle = 0) {
+export function fillText(text, x, y, angle = 0) {
 	Caldro.rendering.context.save()
 	Caldro.rendering.context.translate(x, y)
 	Caldro.rendering.context.rotate(degToRad(angle))
@@ -260,7 +279,7 @@ function fillText(text, x, y, angle = 0) {
 	Caldro.rendering.context.restore();
 }
 
-function strokeText(text, x, y, angle = 0) {
+export function strokeText(text, x, y, angle = 0) {
 	Caldro.rendering.context.save()
 	Caldro.rendering.context.translate(x, y)
 	Caldro.rendering.context.rotate(degToRad(angle))
@@ -274,14 +293,14 @@ function strokeText(text, x, y, angle = 0) {
 	Caldro.rendering.context.restore();
 }
 
-function textOutline(thickness = 0, fillStyle = "black") {
+export function textOutline(thickness = 0, fillStyle = "black") {
 	if (thickness >= 0) {
 		Caldro.rendering.textOutlineThickness = thickness;
 	}
 	Caldro.rendering.textOutlineColor = parseColor(fillStyle)
 }
 
-function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font = "50px Arial", angle = 0, textAlignment = "center", baseline = "middle") {
+export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font = "50px Arial", angle = 0, textAlignment = "center", baseline = "middle") {
 	Caldro.rendering.context.save()
 	Caldro.rendering.context.textAlign = textAlignment
 	Caldro.rendering.context.textBaseline = baseline
@@ -380,7 +399,7 @@ function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font = "50p
 	Caldro.rendering.context.restore();
 }
 
-function edges(w, h, blur, color, canvas = c, camera) {
+export function edges(w, h, blur, color, canvas = c, camera) {
 	let cn = getCanvasDimensions(canvas)
 	Caldro.rendering.context.save();
 	glow(blur, color)
@@ -419,14 +438,14 @@ function edges(w, h, blur, color, canvas = c) {
 	Caldro.rendering.context.restore();
 } */
 
-function glow(amount = 10, color = 'white') {
+export function glow(amount = 10, color = 'white') {
 	if (Caldro.renderer.glow) {
 		Caldro.rendering.context.shadowBlur = amount;
 		Caldro.rendering.context.shadowColor = parseColor(color);
 	}
 }
 
-function shadow(amount = 10, color = 'white', offsetX = 0, offsetY = 0) {
+export function shadow(amount = 10, color = 'white', offsetX = 0, offsetY = 0) {
 	if (Caldro.renderer.glow) {
 		Caldro.rendering.context.shadowBlur = amount;
 		Caldro.rendering.context.shadowColor = parseColor(color);
@@ -435,13 +454,13 @@ function shadow(amount = 10, color = 'white', offsetX = 0, offsetY = 0) {
 	}
 }
 
-function alpha(value) {
+export function alpha(value) {
 	if (Caldro.renderer.alpha) {
 		Caldro.rendering.context.globalAlpha = value;
 	}
 }
 
-function Rect(x, y, w, h, fill, angle = 0) {
+export function Rect(x, y, w, h, fill, angle = 0) {
 	if (Caldro.rendering.shapeClipping) {
 		let cam = Caldro.rendering.shapeClippingCamera;
 		if (cam.capturing) {
@@ -457,7 +476,7 @@ function Rect(x, y, w, h, fill, angle = 0) {
 	Caldro.rendering.context.restore();
 }
 
-function stRect(x, y, w, h, fill, lineWidth = 20, angle = 0) {
+export function stRect(x, y, w, h, fill, lineWidth = 20, angle = 0) {
 	Caldro.rendering.context.save();
 	Caldro.rendering.context.translate(x, y);
 	Caldro.rendering.context.rotate(degToRad(angle));
@@ -466,7 +485,7 @@ function stRect(x, y, w, h, fill, lineWidth = 20, angle = 0) {
 	Caldro.rendering.context.restore();
 }
 
-function curvedRect(x, y, width, height, fill, angle = 0, dotBorderRadius = 10) {
+export function curvedRect(x, y, width, height, fill, angle = 0, dotBorderRadius = 10) {
 	let hw = width / 2;
 	let hh = height / 2;
 	Caldro.rendering.context.save();
@@ -515,7 +534,7 @@ function curvedRect(x, y, width, height, fill, angle = 0, dotBorderRadius = 10) 
 	circle(this.x+this.hw,this.y,this.hh,this.color)*/
 };
 
-function stCurvedRect(x, y, width, height, fill, angle, dotBorderRadius = 10, lw = 5) {
+export function stCurvedRect(x, y, width, height, fill, angle, dotBorderRadius = 10, lw = 5) {
 	let hw = width / 2;
 	let hh = height / 2;
 	Caldro.rendering.context.save();
@@ -563,7 +582,7 @@ function stCurvedRect(x, y, width, height, fill, angle, dotBorderRadius = 10, lw
 };
 
 
-function triangle(x, y, length, color, angle = 0) {
+export function triangle(x, y, length, color, angle = 0) {
 	let sqrt3 = 1.7321;
 	let height = length * (sqrt3 / 2)
 	let a = new Point2D(0, -height / 2);
@@ -582,7 +601,7 @@ function triangle(x, y, length, color, angle = 0) {
 	Caldro.rendering.context.restore()
 }
 
-function stTriangle(x, y, length, color, angle = 0, lineWidth = 2) {
+export function stTriangle(x, y, length, color, angle = 0, lineWidth = 2) {
 	let sqrt3 = 1.7321;
 	let height = length * (sqrt3 / 2)
 	// length = height
@@ -607,7 +626,7 @@ function renderRectBody(body, color) {
 	Rect(body.x, body.y, body.width, body.height, color)
 }
 
-function stDrawPolypon(verticies, color, lineWidth) {
+export function stDrawPolypon(verticies, color, lineWidth) {
 	let context = Caldro.rendering.context;
 	context.beginPath();
 	context.moveTo(verticies[0].x, verticies[0].y);
@@ -620,7 +639,7 @@ function stDrawPolypon(verticies, color, lineWidth) {
 	context.stroke();
 }
 
-function drawPolypon(verticies, color) {
+export function drawPolypon(verticies, color) {
 	let context = Caldro.rendering.context;
 	context.beginPath();
 	context.moveTo(verticies[0].x, verticies[0].y);
@@ -632,20 +651,8 @@ function drawPolypon(verticies, color) {
 	context.fill()
 }
 
-function stDrawPolypon(verticies, color, lw = 2) {
-	let context = Caldro.rendering.context;
-	context.beginPath();
-	context.moveTo(verticies[0].x, verticies[0].y);
-	for (let i = 0; i < verticies.length; ++i) {
-		context.lineTo(verticies[i].x, verticies[i].y)
-	}
-	context.closePath();
-	strokeColor(color)
-	context.lineWidth = lw
-	context.stroke()
-}
 
-function clipPolypon(verticies) {
+export function clipPolypon(verticies) {
 	let context = Caldro.rendering.context;
 	context.beginPath();
 	context.moveTo(verticies[0].x, verticies[0].y);
@@ -656,7 +663,7 @@ function clipPolypon(verticies) {
 	context.clip()
 }
 
-function drawRegularSidedPolygon(x = 0, y = 0, radius = 1, numberOfVertices = 3, color = "skyblue") {
+export function drawRegularSidedPolygon(x = 0, y = 0, radius = 1, numberOfVertices = 3, color = "skyblue") {
 	let TWO_PI = Math.PI * 2;
 	Caldro.rendering.context.beginPath()
 	for (let angle = 0; angle < TWO_PI; angle += TWO_PI / numberOfVertices) {
@@ -676,8 +683,9 @@ function drawRegularSidedPolygon(x = 0, y = 0, radius = 1, numberOfVertices = 3,
 
 
 /// ========== CANVAS AND COLOR =================
-function colorToRGB(color) { }
-function getColor(x, y, context = Caldro.rendering.context, method2 = false) { }
+export function colorToRGB(color) { }
+export function getColor(x, y, context = Caldro.rendering.context, method2 = false) { }
+// using a buffer canvas to get the actual color
 {
 	let canv = document.createElement("canvas");
 	canv.width = 1;
@@ -719,18 +727,18 @@ function getColor(x, y, context = Caldro.rendering.context, method2 = false) { }
 	} */
 }
 
-function pickRandomColor(r = [0, 255], g = [0, 255], b = [0, 255], a = [0, 1]) {
+export function pickRandomColor(r = [0, 255], g = [0, 255], b = [0, 255], a = [0, 1]) {
 	let color = 'rgba(' + randomNumber(r[0], r[1], false) + ',' + randomNumber(g[0], g[1], false) + ',' + randomNumber(b[0], b[1], false) + ',1)';
 	return color;
 }
 
 
-function grayscale(r, g, b) {
+export function grayscale(r, g, b) {
 	value = (r + g + b) / 3
 	return "rgb(" + value + ',' + value + ',' + value + ')';
 }
 
-function colorObjectToString(colorObject) {
+export function colorObjectToString(colorObject) {
 	let co = colorObject;
 	if (co.r) {
 		return 'rgba(' + co.r + ',' + co.g + ',' + co.b + ',' + co.a + ')';
@@ -742,7 +750,7 @@ function colorObjectToString(colorObject) {
 
 
 
-class colorObject {
+export class colorObject {
 	constructor(r = 123, g = 123, b = 123, a = 1) {
 		if (arguments.length == 1) {
 			let color = colorToRGB(r)
@@ -795,7 +803,7 @@ class colorObject {
 	}
 }
 
-const colorUtils = {
+export const colorUtils = {
 	addValue(color, value = 10, editAlpha = false) {
 		return new colorObject(
 			limit(color.r + value, 0, 255),
@@ -869,23 +877,10 @@ const colorUtils = {
 }
 
 
-function interpolatePoints(pointsArray, percentage) {
-	let i = Math.floor(pointsArray.length * (percentage / 100))
-	let point1 = points[i]
-	let point2 = points[i + 1]
-	if (point2) {
-		return {
-			x: interpolate(percentage, point1.x, point2.x),
-			y: interpolate(percentage, point1.y, point2.y)
-		}
-	} else {
-		return point1
-	}
-}
 
 
 // SPECIAL EFFECTS
-function pixelatedCanvas(canvas, percentage = 50, anti_aliasing = false, x = 0, y = 0, width = c.w, height = c.h) {
+export function pixelatedCanvas(canvas, percentage = 50, anti_aliasing = false, x = 0, y = 0, width = c.w, height = c.h) {
 	let pixelator = Caldro.renderer._pixelatorCanvas;
 	let drawingCanvas = Caldro.renderer.canvas;
 	percentage = (clip(percentage, 0, 100) * 0.01);
@@ -902,7 +897,7 @@ function pixelatedCanvas(canvas, percentage = 50, anti_aliasing = false, x = 0, 
 
 
 
-function manipulateImageData(canvas, operation) {
+export function manipulateImageData(canvas, operation) {
 	let context = canvas.getContext("2d");
 	let imageData = context.getImageData(0, 0, canvas.width, canvas.height)
 	let pixels = imageData.data;

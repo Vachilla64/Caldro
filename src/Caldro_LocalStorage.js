@@ -1,7 +1,7 @@
 "use strict"; // LocalStorage
 
 // [SID] [NF]
-class localStorageDataCapsule{
+export class localStorageDataCapsule{
 	constructor(localStorageID = generateRandomId()){
 		this.localStorageID = localStorageID
 		this.data = new Array();
@@ -29,11 +29,11 @@ class localStorageDataCapsule{
 	}
 }
 
-function saveToLocalStorage(name, value) {
+export function saveToLocalStorage(name, value) {
 	localStorage.setItem(name, value);
 }
 
-function loadFromLocalStorage(name) {
+export function loadFromLocalStorage(name) {
 	let data = localStorage.getItem(name);
 	if (data == null) {
 		return null;
@@ -42,7 +42,7 @@ function loadFromLocalStorage(name) {
 	}
 }
 
-function deleteFromLocalStorage(name) {
+export function deleteFromLocalStorage(name) {
 	localStorage.removeItem(name);
 	let data = localStorage.getItem(name);
 	if (data != null) {}

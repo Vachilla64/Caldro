@@ -1,8 +1,8 @@
-"use strict"; // Image_Canvas_Manager
+// Image_Canvas_Manager
 
 
 // [SID]
-class canvasImageManager {
+export class canvasImageManager {
 	constructor(imageCanvas = document.createElement('canvas')) {
 		this.canvas = imageCanvas;
 		this.maxWidth = 10000; this.maxHeight = 10000;
@@ -172,7 +172,7 @@ class canvasImageManager {
 
 
 // rendering classes
-class imageHandler {
+export class imageHandler {
 	constructor() {
 		this.images = new Array();
 		this.addImages = 0;
@@ -231,7 +231,7 @@ class imageHandler {
 	onload(){};
 }
 
-class spriteSheetManager {
+export class spriteSheetManager {
 	constructor(spritesheet, spriteSheetWidth = 1280, spriteSheetHeight = 1280) {
 		if (spritesheet) {
 			this.initialize(spritesheet, spriteSheetWidth, spriteSheetHeight)
@@ -283,13 +283,13 @@ class spriteSheetManager {
 	onInit() { }
 }
 
-var CaldroSSM = new spriteSheetManager();
-var CaldroCIM = new canvasImageManager();
-var CaldroIH = new imageHandler();
+export var CaldroSSM = new spriteSheetManager ();
+export var CaldroCIM = new canvasImageManager();
+export var CaldroIH = new imageHandler();
 
 
 
-function drawImage(img, x, y, width, height, centralized = false, angle = 0, flippedX = false, flippedY = false) {
+export function drawImage(img, x, y, width, height, centralized = false, angle = 0, flippedX = false, flippedY = false) {
 	let context = Caldro.renderer.context;
 	if (!centralized) {
 		context.save();
@@ -307,7 +307,7 @@ function drawImage(img, x, y, width, height, centralized = false, angle = 0, fli
 	}
 }
 
-function drawImagePortion(img, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height, centralized = false, angle = 0, flippedX = false, flippedY = false) {
+export function drawImagePortion(img, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height, centralized = false, angle = 0, flippedX = false, flippedY = false) {
 	let context = Caldro.renderer.context;
 	if (!centralized) {
 		context.save();

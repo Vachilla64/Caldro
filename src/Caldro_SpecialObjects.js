@@ -1,4 +1,14 @@
-"use strict"; // Special_Objects
+// Special_Objects
+import { c } from "./Caldro_Canvas"
+import { classicAABB } from "./Caldro_ClassicPhysics";
+import { Point2D } from "./Caldro_Physics";
+import { getCanvasDimensions } from "./Caldro_Rendering";
+import Caldro from "./Caldro";
+import { degToRad } from "./Caldro_Math";
+import { dist2D } from "./Caldro_Utility_Functions";
+import { ORIGIN } from "./Caldro_Utility_Constants";
+import { angleBetweenPoints } from "./Caldro_Physics_Utilities";
+
 
 // [SID]
 class layout {
@@ -249,7 +259,7 @@ class draggable {
 }
 
 // [SID]
-class infoBox {
+export class infoBox {
 	constructor(title, x, y, color, fontSize = 20, fontStyle = 'Arial', fontUnit = 'px') {
 		this.title = title;
 		this.x = x;
@@ -540,7 +550,7 @@ class trigger {
 
 //Timer class, Independent of Caldro's time object
 // [SID]
-class timer {
+export class timer {
 	constructor(name = "timer") {
 		this.name = name
 		this.running = false;
@@ -602,7 +612,7 @@ class timer {
 }
 
 // [SID]
-class button {	
+export class button {	
 	constructor(x = 0, y = 0, width = 80, height = 30, text = 'Button', color = 'Grey', strokeColor = 'white') {
 		this.x = x;
 		this.y = y;
@@ -735,7 +745,7 @@ class button {
 	}
 }
 
-const buttonHandler = {
+export const buttonHandler = {
 	buttons: new Array(),
 	active: true,
 	updateButtons() { }
@@ -876,7 +886,7 @@ class particle {
 }
 
 // [SID]
-class particleSystem {
+export class particleSystem {
 	constructor() {
 		this.particles_Array = new Array();
 		this.scaleFactor = 1;
@@ -994,527 +1004,6 @@ class particleSystem {
 		return this.particles_Array.length = 0;
 	};
 };
-
-// [SID]
-class camera {
-	constructor(canvas = c) {
-		this.x = 0;
-		this.y = 0;
-		this.width = canvas.width;
-		this.height = canvas.height;
-		this.aabb = new classicAABB(this.x-this.width*0.5, this.y-this.height*0.5, this.x+this.width*0.5, this.y+this.height*0.5)
-		this.inWorldBounds = {
-			x: this.x,
-			y: this.y,
-			width: this.width,
-			height: this.height,
-		}
-		this.target = {
-			position: new Point2D(0, 0),
-			zoom: 1,
-			trackingSpeed: new Point2D(3, 3),
-			offsetTrackingSpeed: new Point2D(3, 3),
-			zoomSpeed: 3,
-			active: false,
-			followX: true,
-			followY: true,
-			affectZoom: true,
-			affectOffset: true,
-			offset: {
-				x: 0,
-				y: 0,
-			},
-			setTrackingSpeed(x, y){
-				if(x!=null)
-				this.trackingSpeed.x = x
-				if(y!=null)
-				this.trackingSpeed.y = y
-			},
-			setTarget(target) {
-				this.position.x = target.x
-				this.position.y = target.y
-			},
-			setOffset(x, y) {
-				this.offset.x = x;
-				this.offset.y = y;
-			},
-		}
-		this.zoom = 1;
-		this.canvas = Caldro.renderer.canvas
-		this.context = Caldro.renderer.context
-		this.zoomSpeed = 3;
-		this.zoomRatio = 446;
-		this.adjustedZoom = 1;
-		this.attachment = null;
-		this.attached = false;
-		this.capturing = false;
-		this.autoUpdateAssignedCanvas = false;
-		this.actualOffsetX = 0;
-		this.actualOffsetY = 0;
-		this.shakeOffsetX = 0;
-		this.shakeOffsetY = 0;
-		this.angle = 0;
-		this.frame = 0;
-		this.speed = 200;
-		this.shakeOffsetResetFrequency = 20;
-		this.lastOFfsetReset = 0;
-		this.translationX = this.camtranslationX = 0;
-		this.translationY = this.camtranslationY = 0;
-		this.pointer = new Point2D();
-		this.shakeResolutioinsSpeed = 100
-		this.data = new Array();
-		let thisCamera = this
-		this.Frame = {
-			visible: false,
-			type: "fill",
-			color: "black",
-			visibleFrames: [1, 2, 3, 4],
-			thickness: 10,
-			lineWidth: 5,
-			render() {
-				if (!this.visible) return;
-				let w = thisCamera.canvas.width;
-				let h = thisCamera.canvas.height;
-				let x = this.x;
-				let y = this.y;
-				let color = this.color
-				let size = this.thickness * 2
-				let lineWidth = this.lineWidth;
-				if (this.type == "fill") {
-					if (this.visibleFrames.includes(1)) {
-						Rect(w / 2, 0 + size / 2, w, size, color)
-					}
-					if (this.visibleFrames.includes(2)) {
-						Rect(0 + size / 2, h / 2, size, h, color)
-					}
-					if (this.visibleFrames.includes(3)) {
-						Rect(w / 2, h - size / 2, w, size, color)
-					}
-					if (this.visibleFrames.includes(4)) {
-						Rect(w - size / 2, h / 2, size, h, color)
-					}
-				} else if (this.type == "stroke") {
-					if (this.visibleFrames.includes(1)) {
-						stRect(w / 2, 0 + size / 2, w - size * 2, size, color, lineWidth)
-					}
-					if (this.visibleFrames.includes(2)) {
-						stRect(0 + size / 2, h / 2, size, h, color, lineWidth)
-					}
-					if (this.visibleFrames.includes(3)) {
-						stRect(w / 2, h - size / 2, w - size * 2, size, color, lineWidth)
-					}
-					if (this.visibleFrames.includes(4)) {
-						stRect(w - size / 2, h / 2, size, h, color, lineWidth)
-					}
-				} else if (this.type == "" || this.type == "custom") {
-					this.costumFrame(x, y, w, h, this.visibleFrames, this.color)
-				}
-			},
-			costumFrame() { }
-		}
-	}
-
-	getAABB(){
-		this.aabb.min.x = this.x - this.width * 0.5
-		this.aabb.max.x = this.x + this.width * 0.5
-		this.aabb.min.y = this.y - this.height * 0.5
-		this.aabb.max.y = this.y + this.height * 0.5
-		return this.aabb
-	}
-
-	setZoom(zoom) {
-		this.zoom = zoom;
-		let c = getCanvasDimensions(this.canvas)
-		this.width = c.w * (1 / this.zoom);
-		this.height = c.h * (1 / this.zoom);
-	}
-
-	limitWithinBox(boundingBox) {
-		if (this.x - this.width / 2 < boundingBox.x - boundingBox.width / 2) {
-			this.x = boundingBox.x - boundingBox.width / 2 + this.width / 2
-		} else if (this.x + this.width / 2 > boundingBox.x + boundingBox.width / 2) {
-			this.x = boundingBox.x + boundingBox.width / 2 - this.width / 2
-		}
-		if (this.y - this.height / 2 < boundingBox.x - boundingBox.height / 2) {
-			this.y = boundingBox.y - boundingBox.height / 2 + this.height / 2
-		} else if (this.y + this.height / 2 > boundingBox.y + boundingBox.height / 2) {
-			this.y = boundingBox.y + boundingBox.height / 2 - this.height / 2
-		}
-	}
-
-	getBounds() {
-		let cnv = getCanvasDimensions(this.canvas)
-		this.width = cnv.w * (1 / this.zoom);
-		this.height = cnv.h * (1 / this.zoom);
-		return {
-			top: this.y - this.height * 0.5,
-			bottom: this.y + this.height * 0.5,
-			left: this.x - this.width * 0.5,
-			right: this.x + this.width * 0.5,
-			width: this.width,
-			height: this.height,
-		}
-	}
-
-	setCanvas(canvas) {
-		this.canvas = canvas;
-		this.context = canvas.getContext("2d");
-	}
-
-	persistStart() { };
-	persistContinuous() { };
-	enablePersistence(localStorageID) {
-		this.persistStart = () => {
-			if (this.frame === 0) {
-				let posInfo = loadFromLocalStorage(localStorageID)
-				if (posInfo) {
-					posInfo = JSON.parse(posInfo)
-					this.x = parseFloat(posInfo.x)
-					this.y = parseFloat(posInfo.y)
-					this.zoom = parseFloat(posInfo.zoom)
-				}
-			}
-		}
-		this.persistContinuous = () => {
-			saveToLocalStorage(localStorageID, JSON.stringify({
-				x: this.x, y: devCam.y, zoom: devCam.zoom
-			}))
-		}
-	}
-
-	mimicCamera(referrence_camera = this) {
-		this.x = referrence_camera.x;
-		this.y = referrence_camera.y;
-		this.zoom = referrence_camera.zoom;
-		this.actualOffsetX = referrence_camera.actualOffsetX;
-		this.actualOffsetY = referrence_camera.actualOffsetY;
-		this.angle = referrence_camera.angle;
-	};
-
-	showCamera(otherCamera) {
-		if (otherCamera == this) {
-			// Caldro.reportError("A camera cannot perform the operation 'showCamera' on itself", "SPECIAL OBJECT: camera", false)
-		} else {
-			otherCamera.update();
-			otherCamera.resolve();
-		}
-		let bounds = otherCamera.getBounds();
-		let x = -otherCamera.camtranslationX;
-		let y = -otherCamera.camtranslationY;
-		let cx = x + bounds.width / 2
-		let cy = y + bounds.height / 2
-		let width = bounds.width
-		let height = bounds.height
-		let angle = otherCamera.angle
-		let lwNul = 1 / otherCamera.zoom
-		cc.save();
-		cc.rotate(degToRad(-angle))
-		circle(x + width, y + height, 40 * lwNul, "red")
-		alpha(0.05)
-		strect(x, y, width, height, "white", 100 * lwNul)
-		alpha(0.1)
-		rect(x, y, width, height, "white")
-		alpha(0.5)
-		strect(x, y, width, height, "white", 5 * lwNul)
-		alpha(0.3)
-		circle(x, y, 50 * lwNul, "white")
-		alpha(0.5)
-		let lw = 100 * lwNul;
-		let lh = 4 * lwNul;
-		Rect(cx, cy, lw, lh, "white")
-		Rect(cx, cy, lw, lh, "white", 90)
-		cc.restore();
-		alpha(1)
-	}
-
-	updatePointer(pointer) {
-		let c = getCanvasDimensions(this.canvas)
-		let magnificationX = ((c.w * (1 / this.adjustedZoom)) / c.w)
-		let magnificationY = ((c.h * (1 / this.adjustedZoom)) / c.h)
-		this.pointer.x = this.x + (pointer.x * magnificationX) - (c.hw * magnificationX)
-		this.pointer.y = this.y + (pointer.y * magnificationY) - (c.hh * magnificationY)
-		return new Point2D(this.pointer.x, this.pointer.y)
-	}
-
-	resetOffset(resetShakeOffset = true, resetActualOffset = false) {
-		if (resetActualOffset) {
-			this.actualOffsetX = this.actualOffsetY = 0;
-		}
-		if (resetShakeOffset) {
-			this.shakeOffsetX = this.shakeOffsetY = 0;
-		}
-	};
-
-	update(deltatime = Caldro.time.deltatime) {
-		this.persistStart()
-		if (this.autoUpdateAssignedCanvas) this.setCanvas(Caldro.renderer.canvas)
-		this.pre_shot();
-
-		if (this.target.active) {
-			let speedX = this.target.trackingSpeed.x
-			let speedY = this.target.trackingSpeed.y
-			let targetZoom = this.target.zoom
-			let targetPosition = this.target.position
-			if (this.target.affectZoom)
-				this.zoom = approach(this.zoom, targetZoom, this.target.zoomSpeed, deltatime).value
-			if (this.target.followX)
-				this.x = approach(this.x, targetPosition.x, speedX, deltatime).value
-			if (this.target.followY)
-				this.y = approach(this.y, targetPosition.y, speedY, deltatime).value
-			if (this.target.affectOffset) {
-				this.actualOffsetX = approach(this.actualOffsetX, this.target.offset.x, this.target.offsetTrackingSpeed.x, deltatime).value
-				this.actualOffsetY = approach(this.actualOffsetY, this.target.offset.y, this.target.offsetTrackingSpeed.y, deltatime).value
-			}
-		}
-
-		let c = getCanvasDimensions(this.canvas)
-		let cc = this.context
-		this.capturing = true;
-		this.width = c.w * (1 / this.zoom);
-		this.height = c.h * (1 / this.zoom);
-		if (this.attached == true) {
-			place(this, this.attachment);
-		}
-		let radAngle = -degToRad(this.angle)
-		this.adjustedZoom = this.zoom
-
-		let offsetX = this.actualOffsetX + this.shakeOffsetX;
-		let offsetY = this.actualOffsetY + this.shakeOffsetY;
-
-		let topLeftToCenterLength = dist2D(ORIGIN, new Point2D(this.width / 2, this.height / 2));
-		let offsetAngle = 180 - angleBetweenPoints(ORIGIN, new Point2D(this.width / 2, this.height / 2));
-		// this.angle = 0	
-		// this.translationX = -((this.x + offsetX) -~ (c.hw * 1 / this.adjustedZoom)) /* * Math.sin(radAngle); */
-		// this.translationY = -((this.y + offsetY) - (c.hh * 1 / this.adjustedZoom)) /* * Math.cos(radAngle); */
-		this.camtranslationX = -((this.x + offsetX) - (c.hw * 1 / this.adjustedZoom))
-		this.camtranslationY = -((this.y + offsetY) - (c.hh * 1 / this.adjustedZoom))
-
-		// offsetX = offsetY = null;
-
-		cc.save();
-		cc.scale(this.adjustedZoom, this.adjustedZoom);
-		cc.translate(this.camtranslationX, this.camtranslationY);
-		cc.rotate(radAngle);
-		++this.frame;
-		this.callback();
-		this.persistContinuous();
-	};
-
-	pre_shot() { };
-	callback() { };
-	post_shot() { };
-
-	resolve() {
-		let cc = this.context
-		cc.restore();
-		let lastOFfsetReset = performance.now() - this.lastOFfsetReset;
-		if (this.shakeOffsetResetFrequency < lastOFfsetReset) {
-			this.lastOFfsetReset = performance.now();
-			this.shakeOffsetX += (-this.shakeOffsetX * 1.9)
-			this.shakeOffsetY += (-this.shakeOffsetY * 1.9)
-		}
-		this.capturing = false
-		this.post_shot();
-		this.Frame.render();
-	};
-
-	setOffset(offsetX, offsetY) {
-		if (offsetX != null) {
-			this.actualOffsetX = offsetX
-		}
-		if (offsetY != null) {
-			this.actualOffsetY = offsetY
-		}
-	}
-
-	shake(maxOffsetX, maxOffsetY = 0) {
-		this.shakeOffsetX = randomNumber(-maxOffsetX, maxOffsetX)
-		this.shakeOffsetY = randomNumber(-maxOffsetY, maxOffsetY)
-	}
-
-	attach(object) {
-		this.attachment = object;
-		this.attached = true;
-	};
-
-	dettach() {
-		this.attachment = null;
-		this.attached = false;
-	};
-}
-
-// [NF]
-class experimental_camera {
-	constructor() {
-		this.x = 0;
-		this.y = 0;
-		this.width = c.w;
-		this.height = c.h;
-		this.inWorldBounds = {
-			x: this.x,
-			y: this.y,
-			width: this.width,
-			height: this.height,
-		}
-		this.zoom = 1;
-		this.zoomSpeed = 3;
-		this.zoomRatio = 446;
-		this.adjustedZoom = 1;
-		this.attachment = null;
-		this.attached = false;
-		this.capturing = false;
-		this.actualOffsetX = 0;
-		this.actualOffsetY = 0;
-		this.shakeOffsetX = 0;
-		this.shakeOffsetY = 0;
-		this.offsetAngle = 0
-		this.angle = 0;
-		this.frame = 0;
-		this.speed = 200;
-		this.translationX = this.camtranslationX = 0;
-		this.translationY = this.camtranslationY = 0;
-		this.pointer = new Point2D();
-		this.info = new infoBox("CAMERA", 20, 20, "blue")
-
-		this.getBounds = function () {
-			return {
-				top: this.y - this.height * 0.5,
-				bottom: this.y + this.height * 0.5,
-				left: this.x - this.width * 0.5,
-				right: this.x + this.width * 0.5
-			}
-		}
-
-		this.mimicCamera = function (referrence_camera = this) {
-			this.x = referrence_camera.x;
-			this.y = referrence_camera.y;
-			this.zoom = referrence_camera.zoom;
-			this.actualOffsetX = referrence_camera.actualOffsetX;
-			this.actualOffsetY = referrence_camera.actualOffsetY;
-			this.angle = referrence_camera.angle;
-		};
-
-		this.showCamera = function (otherCamera) {
-			if (otherCamera == this) {
-				// Caldro.reportError("A camera cannot perform the operation 'showCamera' on itself", "SPECIAL OBJECT: camera", false)
-			} else {
-				otherCamera.update();
-				otherCamera.resolve();
-			}
-			let x = -otherCamera.camtranslationX;
-			let y = -otherCamera.camtranslationY;
-			circle(-x, -y, 40, "red")
-			let cx = -otherCamera.camtranslationX + otherCamera.width / 2;
-			let cy = -otherCamera.camtranslationY + otherCamera.height / 2;
-			let width = c.w * (1 / otherCamera.zoom)
-			let height = c.h * (1 / otherCamera.zoom)
-			let angle = otherCamera.angle
-			cc.save();
-			cc.rotate(degToRad(-angle))
-			alpha(0.05)
-			strect(x, y, width, height, "white", 100)
-			alpha(0.1)
-			rect(x, y, width, height, "white")
-			alpha(0.5)
-			strect(x, y, width, height, "white", 5)
-			alpha(0.3)
-			circle(x, y, 50, "white")
-			alpha(0.5)
-			let lw = 100;
-			let lh = 4;
-			Rect(cx, cy, lw, lh, "white")
-			Rect(cx, cy, lw, lh, "white", 90)
-			cc.restore();
-		}
-
-		this.updatePointer = function (pointer) {
-			let magnificationX = ((c.w * (1 / this.adjustedZoom)) / c.w)
-			let magnificationY = ((c.h * (1 / this.adjustedZoom)) / c.h)
-			this.pointer.x = this.x + this.camtranslationX + ((pointer.x * magnificationX) - (c.hw * magnificationX))/*  * sine(this.angle) */
-			this.pointer.y = this.y + this.camtranslationY + ((pointer.y * magnificationY) - (c.hh * magnificationY))/*  * -cosine(this.angle) */
-		}
-		/* this.shake = function(magnitudeX, magnitudeY, timer){
-		   if(this.shakeTime <= timer){
-			   
-		   }
-		 }
-		 */
-		this.resetOffset = function (resetShakeOffset = true, resetActualOffset = false) {
-			if (resetActualOffset) {
-				this.actualOffsetX = this.actualOffsetY = 0;
-			}
-			if (resetShakeOffset) {
-				this.shakeOffsetX = this.shakeOffsetY = 0;
-			}
-		};
-
-		this.update = function () {
-			this.pre_shot();
-			this.capturing = true;
-			this.width = c.w * (1 / this.zoom);
-			this.height = c.h * (1 / this.zoom);
-			if (this.attached == true) {
-				place(this, this.attachment);
-			}
-			let radAngle = -degToRad(this.angle)
-			this.adjustedZoom = this.zoom
-
-			let offsetX = this.actualOffsetX + this.shakeOffsetX;
-			let offsetY = this.actualOffsetY + this.shakeOffsetY;
-
-			// this.angle = - this.angle;
-			/* let topLeftToCenterLength = dist2D(ORIGIN, new Point2D(
-				scaleTo(this.x, 0, this.width / 2, 0, this.width / 2),
-				scaleTo(this.y, 0, this.height / 2, 0, this.height / 2)
-			)) * (this.zoom); */
-			// let topLeftToCenterLength = dist2D(ORIGIN, new Point2D(this.width / 2, this.height / 2)) * (this.zoom);
-			// this.offsetAngle = 180 - angleBetweenPoints(ORIGIN, new Point2D(this.width / 2, this.height / 2));
-			// this.camtranslationX = (( (this.x )  * 1/this.zoom)) + (topLeftToCenterLength * sine(this.angle - this.offsetAngle))
-			// this.camtranslationY = (( (this.y )  * 1/this.zoom)) + (topLeftToCenterLength * -cosine(this.angle - this.offsetAngle))
-
-			// let topLeftToCenterLength = dist2D(ORIGIN, new Point2D(this.width / 2, this.height / 2)) * (this.zoo +m); 
-			// let topLeftToCenterLength = dist2D(ORIGIN, new Point2D(this.width / 2, this.height / 2)) * (this.zoom);  
-			let topLeftToCenterLength = dist2D(ORIGIN, new Point2D(this.width / 2, this.height / 2)) * (this.zoom);
-			this.offsetAngle = 180 - angleBetweenPoints(ORIGIN, new Point2D(this.width / 2, this.height / 2));
-			this.camtranslationX = (((this.x) * (1 / this.zoom))) + topLeftToCenterLength * sine(this.angle - this.offsetAngle)
-			this.camtranslationY = (((this.y) * (1 / this.zoom))) + topLeftToCenterLength * -cosine(this.angle - this.offsetAngle)
-
-			// offsetX = offsetY = null;
-
-			cc.save();
-			cc.resetTransform()
-			cc.scale(this.adjustedZoom, this.adjustedZoom);
-			cc.translate(this.camtranslationX, this.camtranslationY);
-			cc.rotate(degToRad(this.angle));
-			cc.translate(0, 0);
-			++this.frame;
-			this.callback();
-			this.info.add("X: ", this.x)
-			this.info.add("Y: ", this.y)
-			this.info.add("zoom: ", this.zoom)
-			this.info.add("half-diag", topLeftToCenterLength)
-			this.info.add("transX", this.camtranslationX)
-			this.info.add("transY", this.camtranslationY)
-		};
-
-		this.pre_shot = this.callback = function () { };
-
-		this.resolve = function () {
-			cc.restore();
-			this.capturing = false
-		};
-
-		this.attach = function (object) {
-			this.attachment = object;
-			this.attached = true;
-		};
-
-		this.unattach = function () {
-			this.attachment = null;
-			this.attached = false;
-		};
-	}
-}
 
 // [NU]
 class cameraManager {

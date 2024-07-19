@@ -1,6 +1,7 @@
-"use strict"; // Renderers
+// Renderers
+import { Rect, txt, font, alpha, rect } from "./Caldro_Rendering";
 
-function cordShow(who, fill = 'green', w = 300, h = 2, showCordValue = false) {
+export function cordShow(who, fill = 'green', w = 300, h = 2, showCordValue = false) {
 	if (who != undefined) {
 		let x = who.x;
 		let y = who.y;
@@ -12,7 +13,7 @@ function cordShow(who, fill = 'green', w = 300, h = 2, showCordValue = false) {
 	}
 }
 
-function meter(x, y, width, height, value = 50, lowest_limit = 0, highest_limit = 100, colors = ['#22ff12', 'orange', 'red'], backgroundColor = "transparent", steps = 100)
+export function meter(x, y, width, height, value = 50, lowest_limit = 0, highest_limit = 100, colors = ['#22ff12', 'orange', 'red'], backgroundColor = "transparent", steps = 100)
 {
 	let color = colors[0]
 	steps = width / steps
@@ -26,7 +27,7 @@ function meter(x, y, width, height, value = 50, lowest_limit = 0, highest_limit 
 	stRect(x, y, width, height, 'white', 2)
 }
 
-function checkBoard(x, y, width, height, rows = 8, columns = 8, color1 = "white", color2 = "black"){
+export function checkBoard(x, y, width, height, rows = 8, columns = 8, color1 = "white", color2 = "black"){
 	let rowHeight = height / rows;
 	let columnWidth = width / columns;
 	let drawX = x;
@@ -46,7 +47,7 @@ function checkBoard(x, y, width, height, rows = 8, columns = 8, color1 = "white"
 }
 
 
-function drawGraph(x = 0, y = 0, width = 1000, height = 1000, minorStep = 10, majorStepCount = 10, color = "white", camera = null, size = null) {
+export function drawGraph(x = 0, y = 0, width = 1000, height = 1000, minorStep = 10, majorStepCount = 10, color = "white", camera = null, size = null) {
     let sizer = size || minorStep*0.1
     let startX = x - (width / 2);
     let startY = y - (height / 2);

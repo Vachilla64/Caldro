@@ -1,13 +1,13 @@
 "use strict"; // Physics
 
-class Point2D {
+export class Point2D {
     constructor(x, y) {
         this.x = x;
         this.y = y;
     }
 }
 
-class Point3D {
+export class Point3D {
     constructor(x, y, z) {
         this.x = x;
         this.y = y;
@@ -15,8 +15,7 @@ class Point3D {
     }
 }
 
-
-class dynamicPoint2D {
+export class dynamicPoint2D {
 	constructor(x = 0, y = 0, data) {
 		this.x = x;
 		this.y = y;
@@ -36,7 +35,7 @@ class dynamicPoint2D {
 	callback() { };
 }
 
-class Collider2D extends dynamicPoint2D {
+export class Collider2D extends dynamicPoint2D {
 	constructor() {
 		super();
 		this.isTrigger = false;
@@ -50,7 +49,7 @@ class Collider2D extends dynamicPoint2D {
 }
 
 //Define Bodies
-class boxCollider2D extends Collider2D {
+export class boxCollider2D extends Collider2D {
 	constructor(x = 0, y = 0, width = 0.5, height = 0.5) {
 		super()
 		this.x = this.oldX = x;
@@ -68,7 +67,7 @@ class boxCollider2D extends Collider2D {
 	}
 }
 
-class circleCollider2D {
+export class circleCollider2D {
 	constructor(x = 0, y = 0, radius = 0.5) {
 		this.x = x;
 		this.y = y;
@@ -98,7 +97,7 @@ class polygonCollider2D {
 }
 
 // [SID]
-class colliderResolutionEngine2D {
+export class colliderResolutionEngine2D {
 	constructor() {
 		this.bodies = new Array();
 		this.renderingStyle = "stroke";
@@ -331,11 +330,8 @@ class colliderResolutionEngine2D {
 
 
 
-
-
-
 // [SID] [NF]
-class verletPhysicsEngine {
+export class verletPhysicsEngine {
 	constructor() {
 		this.bodies = new Array();
 		this.points = new Array();

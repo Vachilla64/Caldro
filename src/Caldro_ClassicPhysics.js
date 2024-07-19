@@ -1,6 +1,16 @@
-"use strict"; // Classic_Physics master
+// Classic_Physics master
+import { degToRad } from "./Caldro_Math";
+import { Lvector2D } from "./Caldro_Vectors_and_Matrices";
+import { clip, radToDeg } from "./Caldro_Math";
+import { INFINITY } from "./Caldro_Utility_Constants";
+import { generateRandomId } from "./Caldro_Utility_Functions";
+import { vecMath } from "./Caldro_Vectors_and_Matrices";
+import Caldro from "./Caldro";
+import { alpha, drawPolypon, drawLine, circle, line } from "./Caldro_Rendering";
+import { angleBetweenPoints } from "./Caldro_Physics_Utilities";
 
-class classicPhysicsWorld {
+
+export class classicPhysicsWorld {
     static minBodySize = 0.01 * 0.01;
     static maxBodySize = 640 * 640;
     // grams per cm cube
@@ -145,7 +155,7 @@ class classicPhysicsWorld {
         }
         body.lifetime = 0;
         this.bodies.push(body)
-        world.onAddBody(body)
+        this.onAddBody(body)
         body.onAdd(this);
     }
     addJoint(joint){
@@ -858,7 +868,7 @@ class classicPhysicsWorld {
     }
 }
 
-class Collisions {
+export class Collisions {
     static GHOST = 2
 
     static pointSegmentDistance(point, lineA, lineB) {
@@ -1286,7 +1296,7 @@ class Collisions {
 
 }
 
-class CollisionManifold {
+export class CollisionManifold {
     constructor(bodyA, bodyB, normal, depth, contactPoint1, contactPoint2, contactPointCount) {
         this.bodyA = bodyA;
         this.bodyB = bodyB;
@@ -1298,7 +1308,7 @@ class CollisionManifold {
     }
 }
 
-class transformPoint {
+export class transformPoint {
     static zero = new transformPoint(0, 0, 0);
     constructor(x, y, angle) {
         this.setTransform(x, y, angle)
@@ -1312,7 +1322,7 @@ class transformPoint {
     }
 }
 
-class classicPhysics {
+export class classicPhysics {
     constructor() {
         this.safeMode = true;
         this.scale = 100
@@ -1829,7 +1839,7 @@ class classicPhysics {
     }
 }
 
-class classicAABB {
+export class classicAABB {
     constructor(minX, minY, maxX, maxY) {
         this.min = new Lvector2D(minX, minY);
         this.max = new Lvector2D(maxX, maxY);

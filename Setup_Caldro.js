@@ -35,7 +35,8 @@ function _loadScript(url, onload, onerror) {
     let scriptFile = document.createElement("script");
     scriptFile.src = url + `?t=${new Date().getTime()}`; // Prevent caching
     scriptFile.defer = true;
-    scriptFile.type = "application/javascript";
+    // scriptFile.type = "application/javascript";
+    scriptFile.type = "module";
     scriptFile.onload = onload;
     scriptFile.onerror = onerror || function() {
         console.error(`Failed to load script: ${url}`);

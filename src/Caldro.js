@@ -1,10 +1,24 @@
-"use strict"; // Caldro
-
+// Caldro
+import { keyStateHandler, Pointer } from "./Caldro_Controls";
+import { CALDBLUE, INFINITY, NULLFUNCTION } from "./Caldro_Utility_Constants";
+import { c } from "./Caldro_Canvas";
+import {
+	rect,
+	glow,
+	font,
+	txt,
+	adjustCanvas,
+	cc,
+} from "./Caldro_Rendering";
+import { place, randomNumber } from "./Caldro_Utility_Functions";
+import { arraySum } from "./Caldro_Utility_Functions";
+import { init_controls } from "./Caldro_Controls";
+import { Lvector2D, vec2 } from "./Caldro_Vectors_and_Matrices";
 /* var CaldroCam = new camera();
 var CaldroPs = new particleSystem();
 var CaldroKeys = new keyStateHandler(); */
 var CaldroKeys = new keyStateHandler();
-
+// let c = getCanvas();
 
 
 var Caldro = {
@@ -31,15 +45,14 @@ var Caldro = {
 			let ct = Caldro.time
 			let now = window.performance.now() / 1000
 			let deltatime = now - ct.previousFrame
-			ct.previousFrame = now
-			ct._lastUpdateElapsedTime += deltatime
+			// ct._lastUpdateElapsedTime += deltatime
 
 			if (ct._maxFPS) {
-				if ((ct._lastUpdateElapsedTime < 1 / ct._maxFPS)) {
-					// if ((deltatime < 1 / ct._maxFPS)) {
+				if ((deltatime < 1 / ct._maxFPS)) {
 					return false;
 				}
 				ct._lastUpdateElapsedTime = 0
+				ct.previousFrame = now
 			}
 
 			ct.currentFrame = window.performance.now() / 1000;
@@ -88,7 +101,7 @@ var Caldro = {
 		// ! ~Not in use~ !
 		world: {
 			dimensions: {
-				meters: c.min / 10,
+				meters: 10
 			}
 		},
 	},
@@ -98,7 +111,7 @@ var Caldro = {
 	},
 
 	info: {
-		version: "0.3.0",
+		version: "0.5.0",
 		logIssues: false,
 		debuggingLogs: {
 			// ! ~Not in use~ !
@@ -125,7 +138,7 @@ var Caldro = {
 	renderer: {
 		initializedImputControls: false,
 		canvas: c,
-		context: c.getContext("2d"),
+		context: c.getContext('2d'),
 		setRenderingCanvas: function (canvas) {
 			if (getConstructorName(canvas) == "HTMLCanvasElement") {
 				this.canvas = canvas
@@ -209,7 +222,7 @@ var Caldro = {
 		pointers: new Array(),
 		checkForPointerIn: function (area) {
 			for (let point of Caldro.screen.pointers) {
-				if(!point) continue
+				if (!point) continue
 				if (pointIsIn(point, area)) {
 					return true
 				}
@@ -218,7 +231,7 @@ var Caldro = {
 		},
 		getFirstPointerIn: function (area) {
 			for (let point of Caldro.screen.pointers) {
-				if(!point) continue
+				if (!point) continue
 				if (pointIsIn(point, area)) {
 					return point;
 				}
@@ -229,7 +242,7 @@ var Caldro = {
 			let pointers = new Array();
 			let foundOne = false
 			for (let point of Caldro.screen.pointers) {
-				if(!point) continue
+				if (!point) continue
 				if (pointIsIn(point, area)) {
 					foundOne = true
 					pointers.push(point);
@@ -238,8 +251,11 @@ var Caldro = {
 			if (foundOne) return pointers
 			else return foundOne;
 		},
+		getPointer(ID = 0){
+			return this.pointers[ID]
+		},
 		addPointer: function (x, y, id = generateRandomId()) {
-			this.pointers.push(new Point2D(x, y))
+			this.pointers.push(new Pointer(x, y, 0))
 		},
 		getPointerByID(ID) {
 			try {
@@ -250,17 +266,8 @@ var Caldro = {
 			}
 		},
 		updatePointers: function (touchEvent, type = "idle") {
-			// this.pointers.length = touchEvent.targetTouches.length;
-			// for (let touch = 0; touch < touchEvent.targetTouches.length; ++touch) {
-			// 	let point = new Point2D();
-			// 	point.x = touchEvent.targetTouches[touch].pageX
-			// 	point.y = touchEvent.targetTouches[touch].pageY
-			// 	this.pointerAdjustment(point)
-			// 	this.pointers[touch] = point
-			// }
-			// console.log(this.pointers.length)
-			// return
-			let event = touchEvent
+			let event = touchEvent;
+			let pointer = new vec2(0, 0);
 			if (event.changedTouches) {
 				if (type == "start") {
 					const changedTouches = event.changedTouches;
@@ -271,6 +278,7 @@ var Caldro = {
 							y: touch.pageY,
 							ID: touch.identifier
 						};
+						place(pointer, point)
 						this.pointerAdjustment(point)
 						this.pointers[touch.identifier] = point
 					}
@@ -283,6 +291,7 @@ var Caldro = {
 							point.x = touch.pageX;
 							point.y = touch.pageY;
 						}
+						place(pointer, point)
 						this.pointerAdjustment(point)
 					}
 				} else if (type == "end") {
@@ -304,6 +313,7 @@ var Caldro = {
 						y: touch.pageY,
 						ID: touch.button
 					};
+					place(pointer, point)
 					this.pointerAdjustment(point)
 					this.pointers[touch.button] = point
 				} else if (type == "move") {
@@ -319,6 +329,7 @@ var Caldro = {
 							ID: touch.button
 						};
 					}
+					place(pointer, point)
 					this.pointerAdjustment(point)
 					this.pointers[touch.button] = point
 				} else if (type == "end") {
@@ -329,7 +340,7 @@ var Caldro = {
 					}
 				}
 			}
-
+			return pointer;
 		},
 		showPointers: function () {
 			for (let point of this.pointers) {
@@ -399,41 +410,81 @@ var Caldro = {
 	},
 
 	show: function () {
-		if (this.showActive) {
-			let ratio = 1.6;
-			rect(0, 0, c.w, c.h, "black")
-			// let twidth = cc.measureText(Caldro.info.displayText.text).width
-			glow(gen(0, 30), Caldro.info.displayText.color)
-			txt(Caldro.info.displayText.text, c.xc, c.yc, font(c.w * ratio / (Caldro.info.displayText.text.length)), Caldro.info.displayText.color)
-			txt(Caldro.info.displayText.text, c.xc, c.yc, font(c.w * ratio / (Caldro.info.displayText.text.length)), Caldro.info.displayText.color)
-			txt(Caldro.info.displayText.text, c.xc, c.yc, font(c.w * ratio / (Caldro.info.displayText.text.length)), Caldro.info.displayText.color)
-			glow(0)
-		};
+		let ratio = 1.6;
+		let text = "Caldro";
+		let color = "white"
+		rect(0, 0, c.w, c.h, "black")
+		// let twidth = cc.measureText(Caldro.info.displayText.text).width
+		glow(randomNumber(0, 30), color)
+		txt(text, c.xc, c.yc, font(c.w * ratio / (text.length)), color)
+		txt(text, c.xc, c.yc, font(c.w * ratio / (text.length)), color)
+		txt(text, c.xc, c.yc, font(c.w * ratio / (text.length)), color)
+		glow(0)
 	},
 
-	startAutoLoop: function () {
-		CALDRO_INFINITE_LOOP()
+	start: function () {
+		START_INFINITE_LOOPS()
+		this.engine.START();
 	},
 	init() {
 		this.renderer._pixelatorCanvasContext = this.renderer._pixelatorCanvas.getContext("2d")
+		this.screen.addPointer(0, 0, 0)
 		try {
 			init_controls();
-			Caldro.events.initializedImputControls = true
+			this.events.initializedImputControls = true
 		} catch {
 			console.error("Controls could not be initalized, try manually initiallzing in this page")
 		}
+	},
+	engine: {
+		running: false,
+		UPDATE() { },
+		FIXEDUPDATE() { },
+		RENDER() { },
+		START() {
+			this.running = true;
+		},
+		KILL() {
+			this.running = false
+		},
 	}
 }
-Caldro.init();
 
 
 
-function MainLoop() { };
-const CALDRO_INFINITE_LOOP = function () {
-	window.requestAnimationFrame(CALDRO_INFINITE_LOOP);
-	MainLoop()
+const INFINITE_UPDATE_LOOP = function () {
+	window.requestAnimationFrame(INFINITE_UPDATE_LOOP);
+	if (Caldro.time.update()) {
+		if(Caldro.engine.running){
+			Caldro.engine.UPDATE();
+			// c.getContext('2d').save();
+			/// flipping coordinate system to match graph
+			// c.getContext('2d').scale(1, -1);
+			Caldro.engine.RENDER();
+			// c.getContext('2d').restore();
+		}
+		try {
+		} catch {
+			// console.error("Caldro infinite loop ain't looping")
+		}
+	}
 }
 
-if (onCaldroLoad) {
+let startedLoop = false
+// start the infinite loop handled by Caldro
+const START_INFINITE_LOOPS = function () {
+	console.log("running")
+	try {
+		if (startedLoop) console.error("Cannot initialize the infinite loop more than once")
+		INFINITE_UPDATE_LOOP()
+		startedLoop = true
+	} catch {
+		console.error("Could not start loops for some reason")
+	}
+}
+
+try {
 	onCaldroLoad();
-}
+} catch { }
+
+export default Caldro

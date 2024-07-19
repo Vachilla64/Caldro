@@ -1,6 +1,6 @@
 "use strict" // File_Management
 
-const FILE = {
+export const FILE = {
     TYPES: {
         TEXT: "text/plain",
         CSV: "text/csv",
@@ -10,7 +10,7 @@ const FILE = {
     }
 }
 
-function downloadDataAsFile(data, fileName, fileType = FILE.TYPES.TEXT, fileExtension = null){
+export function downloadDataAsFile(data, fileName, fileType = FILE.TYPES.TEXT, fileExtension = null){
     let link = document.createElement("a")
     link.setAttribute("target", "_blank")
     let file;
@@ -35,7 +35,7 @@ function downloadDataAsFile(data, fileName, fileType = FILE.TYPES.TEXT, fileExte
     URL.revokeObjectURL(file);
 }
 
-function copyBuffer(buffer, type = "UInt8Array"){
+export function copyBuffer(buffer, type = "UInt8Array"){
     let ARRAY_BUFFER_TYPES = [
         "Uint0Array",
         "Uint0ArrayClampedArray",
@@ -56,7 +56,7 @@ function copyBuffer(buffer, type = "UInt8Array"){
     return (new Function("return new "+type+"(buffer).buffer"))();
 }
 
-function loadBytes(fileURL, callback, async = true){
+export function loadBytes(fileURL, callback, async = true){
     let data;
     let xReq = new XMLHttpRequest();
     xReq.open('GET', fileURL, async);
@@ -74,7 +74,7 @@ function loadBytes(fileURL, callback, async = true){
     return data;
 }
 
-function loadText(fileURL, callback, async = true){
+export function loadText(fileURL, callback, async = true){
     let data;
     let xReq = new XMLHttpRequest();
     xReq.open('GET', fileURL, async);
@@ -91,14 +91,14 @@ function loadText(fileURL, callback, async = true){
     return data;
 }
 
-function loadScript(url){
+export function loadScript(url){
     let scriptFile = document.createElement("script");
     scriptFile.src = url;
     scriptFile.defer = true;
     document.body.appendChild(scriptFile);
 }
 
-function saveCanvasScreenshot(canvas, name){
+export function saveCanvasScreenshot(canvas, name){
     canvas.toBlob(
         (data)=>{
             downloadDataAsFile(data, name)

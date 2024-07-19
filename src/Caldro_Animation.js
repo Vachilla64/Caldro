@@ -1,7 +1,11 @@
-"use strict" // Animation
+// Animation
+import { interpolate } from "./Caldro_Math";
+import { NULLFUNCTION, INFINITY } from "./Caldro_Utility_Constants";
+import { getConstructorName } from "./Caldro_Utility_Functions";
+import { arrUtils } from "./Caldro_Vectors_and_Matrices";
 
 // [SID]
-class AnimationGraphNode {
+export class AnimationGraphNode {
     constructor(time = 0, value = 0, enterFunction = NULLFUNCTION, callback = NULLFUNCTION) {
         this.x = time;
         this.y = value;
@@ -15,7 +19,7 @@ class AnimationGraphNode {
 }
 
 // [SID]
-class AnimationGraph {
+export class AnimationGraph {
     static SAMEASPREVIOUS = "sameFunctionAsPreviousFuncion"
     constructor(animationNodes = new Array()) {
         this.nodes = new Array();

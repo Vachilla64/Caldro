@@ -1,6 +1,9 @@
-"use strict"; // Vectors_and_Matricies
+// Vectors_and_Matricies
+import { dist2D } from "./Caldro_Utility_Functions"
 
-class Lvector2D {
+
+// Light Vectors which wil only perform operations on themselves
+export class Lvector2D {
     static zero = () => {
         return new Lvector2D(0, 0)
     }
@@ -52,7 +55,14 @@ class Lvector2D {
     }
 }
 
-class Lvector3D {
+export function vec2(x, y) {
+    return {
+        x: x,
+        y: y,
+    }
+}
+
+export class Lvector3D {
     constructor(x, y, z) {
         this.x = x;
         this.y = y;
@@ -60,7 +70,8 @@ class Lvector3D {
     }
 }
 
-class vector2D {
+// regular vectors. Their methods will return noe vectors
+export class vector2D {
     static zero = new vector2D(0, 0)
     constructor(x, y) {
         this.x = x;
@@ -101,7 +112,7 @@ class vector2D {
 }
 
 
-const vecMath = {
+export const vecMath = {
     normalize(vector, sourceVector = originVector) {
         let mag = this.distance(vector, sourceVector);
         mag = mag == 0 ? 1 : mag;
@@ -173,9 +184,9 @@ const vecMath = {
     },
 }
 
-const originVector = new vector2D(0, 0)
+export const originVector = new vector2D(0, 0)
 
-function array2D(rows = 2, columns = 2, initialValues = 0) {
+export function array2D(rows = 2, columns = 2, initialValues = 0) {
     let arr2D = new Array();
     for (let r = 0; r < rows; ++r) {
         let Row = new Array();
@@ -192,7 +203,7 @@ function array2D(rows = 2, columns = 2, initialValues = 0) {
 }
 
 
-class Matrix {
+export class Matrix {
     static rowWise = 1;
     static columnWise = 2;
     constructor(rows, columns, initializer = 0) {
@@ -514,7 +525,7 @@ class Matrix {
     }
 }
 
-class Array2D {
+export class Array2D {
     constructor(rows = 2, columns = 2, initialValues = 0) {
         this.data = new Array();
         this.rows = rows;
@@ -543,7 +554,7 @@ class Array2D {
     }
 }
 
-const matUtils = {
+export const matUtils = {
     transposeMatrix(matrix) {
         let newMat = new matrix2D(matrix.columns, matrix.rows)
         for (let r = 0; r < matrix.rows; ++r) {
@@ -617,7 +628,7 @@ const matUtils = {
     } */
 }
 
-const arrUtils = {
+export const arrUtils = {
     dot(array1, array2) {
         let ans = 0;
         for (let n = 0; n < array1.length; ++n) {

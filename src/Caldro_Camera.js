@@ -6,7 +6,7 @@ import { cosine, degToRad, sine } from "./Caldro_Math";
 import { Lvector2D, vec2, vecMath } from "./Caldro_Vectors_and_Matrices";
 import { ORIGIN } from "./Caldro_Utility_Constants";
 import { angleBetweenPoints, castRay } from "./Caldro_Physics_Utilities";
-import { dist2D, doTask, generateRandomId, getRandomPointIn, place } from "./Caldro_Utility_Functions";
+import { dist2D, doTask, generateRandomId, getConstructorName, getRandomPointIn, place } from "./Caldro_Utility_Functions";
 import { alpha, circle, drawRay, Rect, stRect, stTriangle, triangle } from "./Caldro_Rendering";
 import { camera } from "../../projects/plain/src/setup";
 import { cordShow } from "./Caldro_Renderers";
@@ -26,16 +26,17 @@ export class Camera {
 			width: this.width,
 			height: this.height,
 		}
-		this.zoom = new vec2(1, 1);
-		this.canvas = Caldro.renderer.canvas
-		this.context = Caldro.renderer.context
-		this.capturing = false;
-		this.autoUpdateAssignedCanvas = true;
-		this.angle = 0;
-		this.frame = 0;
+		this.zoom = new vec2(1, 1); // a vector specifiying the x and y zoom levels
+		this.canvas = Caldro.renderer.canvas // storing the cnavas for reference 
+		this.context = Caldro.renderer.canvas.getContext('2d') // storing the context for reference
+		this.capturing = false; // will be true inbeween start() and end() calls of the camear
+		this.autoUpdateAssignedCanvas = false; // if true, will update the refernce canvas to the current Caldro main canvas
+		this.angle = 0; // angle in degrees
+		this.frame = 0; // 0 means nothing rendered
 		this.translationX = this.camtranslationX = 0;
 		this.translationY = this.camtranslationY = 0;
 		this.pointer = new Point2D();
+
 	}
 
 	getAABB() {
@@ -67,6 +68,8 @@ export class Camera {
 	}
 
 	setCanvas(canvas) {
+		if(getConstructorName(canvas) !== "HTMLCanvasElement")
+			console.log("Canvas argument passed is not a canvas: ", canvas); return;
 		this.canvas = canvas;
 		this.context = canvas.getContext("2d");
 	}
@@ -95,7 +98,6 @@ export class Camera {
 
 	showCamera(otherCamera) {
 		otherCamera.start();
-		// circle(0, 0, 10, "red")
 		otherCamera.end();
 		
 		alpha(0.4)
@@ -105,7 +107,8 @@ export class Camera {
 		alpha(0.2)
 		Rect(otherCamera.x, otherCamera.y, otherCamera.width, otherCamera.height, "white", otherCamera.angle)
 		let borderWidth = 40
-		// stRect(otherCamera.x, otherCamera.y, otherCamera.width - borderWidth, otherCamera.height - borderWidth, "white", borderWidth, otherCamera.angle)
+		// let borderWidth = 40 * (1/otherCamera.zoom.x)
+		stRect(otherCamera.x, otherCamera.y, otherCamera.width - borderWidth, otherCamera.height - borderWidth, "white", borderWidth, otherCamera.angle)
 		alpha(1)
 	}
 
@@ -121,9 +124,13 @@ export class Camera {
 		if (!pointer) return
 		let magnificationX = ((this.canvas.width * (1 / this.zoom.x)) / this.canvas.width)
 		let magnificationY = ((this.canvas.height * (1 / this.zoom.y)) / this.canvas.height)
-		this.pointer.x = this.x + (pointer.x * magnificationX) - ((this.canvas.width / 2) * magnificationX)
-		this.pointer.y = this.y + (pointer.y * magnificationY) - ((this.canvas.height / 2) * magnificationY)
-		return new Point2D(this.pointer.x, this.pointer.y)
+		let point = new Point2D(
+			this.x + (pointer.x * magnificationX) - ((this.canvas.width / 2) * magnificationX)
+			,
+			this.y + (pointer.y * magnificationY) - ((this.canvas.height / 2) * magnificationY)
+		);
+		point = castRay(this.x, this.y, this.angle + angleBetweenPoints(this,point), dist2D(this, point))
+		return point
 	}
 
 
@@ -138,53 +145,30 @@ export class Camera {
 		// adjust camera width and height accounting for zoom
 		this.width = this.canvas.width * (1 / this.zoom.x);
 		this.height = this.canvas.height * (1 / this.zoom.y);
-		// this.adjustedZoom = this.zoom
-
-		// distance from 0.0 to the top left of the canvas (in screen space)
-		let topLeftToCenterLength = vecMath.distance(ORIGIN, new vec2(this.width * 0.5, this.height * 0.5));
-
-		this.camtranslationX = -((this.x) - this.width*0.5)
-		this.camtranslationY = -((this.y) - this.height*0.5)
-
-		// displacedmt of camear from 0.0 to half with and height of the canvas, taking into account tzoom level (in screen space)
-		let translation = new vec2(this.camtranslationX, this.camtranslationY);
-
-		// angle from a vector straight up to a vector top left of the canvas
-		let offsetAngle = angleBetweenPoints(ORIGIN, new vec2(this.width * 0.5, this.height * 0.5));
-
-		// 
-		let castVec = castRay(this.x, this.y, offsetAngle, topLeftToCenterLength)
 
 
-		translation = vecMath.copy(castVec)
-
-
-
-
-
-		doTask("log angle", () => {
-			console.clear()
-			console.log("New Log: ", generateRandomId())
-			console.log("distance", topLeftToCenterLength)
-			console.log("Angle", offsetAngle)
-			console.log("Translation: ", translation)
-			console.log("Cast Vector: ", castVec)
-		}, true, Infinity, 1000)
-
-
+		// canvas likes radians so yeah
 		let radAngle = degToRad(this.angle)
 
+		// save the context so we can do weird stuff
 		cc.save();
-		cc.translate(translation.x, translation.y);
+		
+		// scale the canvas for zoom. I apply this first cos the other transformations already take the scale into considerations throught the width and height of the camera
+		cc.scale(this.zoom.x, this.zoom.y)
+		// translate the canvas origin to the camera center but at 0, 0
+		cc.translate(this.width/2, this.height/2)
+		// rotate the canvas here so that eveything takes on this rotation properly
 		cc.rotate(-radAngle);
-		// cc.translate(translation.x, translation.y);
-		// cc.scale(this.zoom.x, this.zoom.y);
+		// translate the canavs to the x and y of the camera, since translates stack, this already takes into account the center translation from ealier
+		cc.translate(-this.x, -this.y)
 
+		// updating the frame counter here so the callback can access the correct frame number
 		++this.frame;
 		this.callback();
 		this.persistContinuous();
 
-		// Rect(this.y, this.x, this.width, this.height, "white")
+
+		// do any blurs or white screen or blackscreen stuff here
 	};
 
 	pre_shot() { };
@@ -201,7 +185,7 @@ export class Camera {
 
 }
 
-
+/// acting as a backup, will remove soon
 // [SID]
 export class Cimera {
 	constructor(canvas = c) {

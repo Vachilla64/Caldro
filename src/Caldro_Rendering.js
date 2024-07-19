@@ -7,6 +7,10 @@ import { c } from "./Caldro_Canvas"
 import { randomNumber } from "./Caldro_Utility_Functions";
 import { CALDGRAY } from "./Caldro_Utility_Constants";
 import { Point2D } from "./Caldro_Physics";
+import { clip } from "./Caldro_Math";
+import { INFINITY } from "./Caldro_Utility_Constants";
+import { getConstructorName } from "./Caldro_Utility_Functions";
+import { drawImage, drawImagePortion } from "./Caldro_Image";
 // In your canvas module (e.g., canvas.js)
 
 
@@ -83,8 +87,8 @@ export function adjustCanvas(canvas = c, width = window.innerWidth, height = win
 	canvas.font = '10px Arial';
 	canvas.orientation = (canvas.w == canvas.max ? 'landscape' : 'potrait')
 	Caldro.rendering.context.imageSmoothingEnabled = Caldro.rendering.imageSmoothing;
-	Caldro.rendering.context.lineCap = "round"
-	Caldro.rendering.context.lineJoin = "round"
+	Caldro.rendering.context.lineCap = "bezel"
+	Caldro.rendering.context.lineJoin = "bezel"
 };
 
 export function adjustCanvasToRatio(w = 1, h = 1) {
@@ -881,6 +885,7 @@ export const colorUtils = {
 
 // SPECIAL EFFECTS
 export function pixelatedCanvas(canvas, percentage = 50, anti_aliasing = false, x = 0, y = 0, width = c.w, height = c.h) {
+	percentage = 100 - percentage
 	let pixelator = Caldro.renderer._pixelatorCanvas;
 	let drawingCanvas = Caldro.renderer.canvas;
 	percentage = (clip(percentage, 0, 100) * 0.01);

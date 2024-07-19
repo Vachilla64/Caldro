@@ -14,11 +14,20 @@ import { place, randomNumber } from "./Caldro_Utility_Functions";
 import { arraySum } from "./Caldro_Utility_Functions";
 import { init_controls } from "./Caldro_Controls";
 import { Lvector2D, vec2 } from "./Caldro_Vectors_and_Matrices";
+import { getConstructorName } from "./Caldro_Utility_Functions";
+import { spriteSheetManager } from "./Caldro_Image";
+import { canvasImageManager } from "./Caldro_Image_Canvas_Manager";
+import { imageHandler } from "./Caldro_Image";
 /* var CaldroCam = new camera();
 var CaldroPs = new particleSystem();
 var CaldroKeys = new keyStateHandler(); */
 var CaldroKeys = new keyStateHandler();
 // let c = getCanvas();
+
+export var CaldroSSM = new spriteSheetManager ();
+export var CaldroCIM = new canvasImageManager();
+export var CaldroIH = new imageHandler();
+
 
 
 var Caldro = {

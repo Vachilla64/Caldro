@@ -267,11 +267,14 @@ export function init_mouse_controls(canvas = c) {
 }
 
 export function init_keyboard_controls(canvas) {
+	c.onkeydown = () => {
+		console.log('fjlsadjl')
+	}
 	canvas.addEventListener("keydown", function (event) {
 		Caldro.info.currentKeyStateHandler.activateKeyState(event);
 		keyboard.addKey(event)
 		keyPressHandler(event.which)
-	})
+	}, false)
 
 	canvas.addEventListener("keyup", function (event) {
 		Caldro.info.currentKeyStateHandler.deactivateKeyState(event);

@@ -60,7 +60,7 @@ export function createMainCanvas(addToDOM = false, id = undefined, width = windo
 	}
 	if (addToDOM) {
 		let container = document.createElement("div")
-		container.id = "Main_Canvas_Container";
+		container.id = "Caldro_Canvas_Container";
 		container.style.width = width;
 		container.style.height = height;
 		// console.log(container)

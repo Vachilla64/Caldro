@@ -1,7 +1,7 @@
 // Caldro
-import { keyStateHandler, Pointer } from "./Caldro_Controls";
-import { CALDBLUE, INFINITY, NULLFUNCTION } from "./Caldro_Utility_Constants";
-import { c } from "./Caldro_Canvas";
+import { keyStateHandler, Pointer } from "./Caldro_Controls.js";
+import { CALDBLUE, INFINITY, NULLFUNCTION } from "./Caldro_Utility_Constants.js";
+import { c } from "./Caldro_Canvas.js";
 import {
 	rect,
 	glow,
@@ -9,15 +9,15 @@ import {
 	txt,
 	adjustCanvas,
 	cc,
-} from "./Caldro_Rendering";
-import { place, randomNumber } from "./Caldro_Utility_Functions";
-import { arraySum } from "./Caldro_Utility_Functions";
-import { init_controls } from "./Caldro_Controls";
-import { Lvector2D, vec2 } from "./Caldro_Vectors_and_Matrices";
-import { getConstructorName } from "./Caldro_Utility_Functions";
-import { spriteSheetManager } from "./Caldro_Image";
-import { canvasImageManager } from "./Caldro_Image_Canvas_Manager";
-import { imageHandler } from "./Caldro_Image";
+} from "./Caldro_Rendering.js";
+import { place, randomNumber } from "./Caldro_Utility_Functions.js";
+import { arraySum } from "./Caldro_Utility_Functions.js";
+import { init_controls } from "./Caldro_Controls.js";
+import { Lvector2D, vec2 } from "./Caldro_Vectors_and_Matrices.js";
+import { getConstructorName } from "./Caldro_Utility_Functions.js";
+import { spriteSheetManager } from "./Caldro_Image.js";
+import { canvasImageManager } from "./Caldro_Image_Canvas_Manager.js";
+import { imageHandler } from "./Caldro_Image.js";
 /* var CaldroCam = new camera();
 var CaldroPs = new particleSystem();
 var CaldroKeys = new keyStateHandler(); */
@@ -434,6 +434,7 @@ var Caldro = {
 	start: function () {
 		START_INFINITE_LOOPS()
 		this.engine.START();
+		this.engine.ONSTART();
 	},
 	init() {
 		this.renderer._pixelatorCanvasContext = this.renderer._pixelatorCanvas.getContext("2d")
@@ -450,6 +451,7 @@ var Caldro = {
 		UPDATE() { },
 		FIXEDUPDATE() { },
 		RENDER() { },
+		ONSTART(){},
 		START() {
 			this.running = true;
 		},

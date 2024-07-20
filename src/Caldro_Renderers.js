@@ -1,5 +1,5 @@
 // Renderers
-import { Rect, txt, font, alpha, rect } from "./Caldro_Rendering";
+import { Rect, txt, font, alpha, rect } from "./Caldro_Rendering.js";
 
 export function cordShow(who, fill = 'green', w = 300, h = 2, showCordValue = false) {
 	if (who != undefined) {

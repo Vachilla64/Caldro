@@ -1,5 +1,5 @@
 // Utility_Constants
-import { Point2D } from "./Caldro_Physics";
+import { Point2D } from "./Caldro_Physics.js";
 
 export const CALDGRAY = "rgba(20, 20, 20, 1)"
 export const CALDGREY = CALDGRAY;

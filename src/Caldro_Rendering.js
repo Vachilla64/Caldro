@@ -1,16 +1,16 @@
 // Rendering
-import { createMainCanvas } from "./Caldro_DOM_manipulation";
-import { NULLFUNCTION } from "./Caldro_Utility_Constants";
-import Caldro from "./Caldro";
-import { degToRad } from "./Caldro_Math";
-import { c } from "./Caldro_Canvas"
-import { randomNumber } from "./Caldro_Utility_Functions";
-import { CALDGRAY } from "./Caldro_Utility_Constants";
-import { Point2D } from "./Caldro_Physics";
-import { clip } from "./Caldro_Math";
-import { INFINITY } from "./Caldro_Utility_Constants";
-import { getConstructorName } from "./Caldro_Utility_Functions";
-import { drawImage, drawImagePortion } from "./Caldro_Image";
+import { createMainCanvas } from "./Caldro_DOM_manipulation.js";
+import { NULLFUNCTION } from "./Caldro_Utility_Constants.js";
+import Caldro from "./Caldro.js";
+import { degToRad } from "./Caldro_Math.js";
+import { c } from "./Caldro_Canvas.js"
+import { randomNumber } from "./Caldro_Utility_Functions.js";
+import { CALDGRAY } from "./Caldro_Utility_Constants.js";
+import { Point2D } from "./Caldro_Physics.js";
+import { clip } from "./Caldro_Math.js";
+import { INFINITY } from "./Caldro_Utility_Constants.js";
+import { getConstructorName } from "./Caldro_Utility_Functions.js";
+import { drawImage, drawImagePortion } from "./Caldro_Image.js";
 // In your canvas module (e.g., canvas.js)
 
 

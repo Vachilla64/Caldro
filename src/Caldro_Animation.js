@@ -1,8 +1,8 @@
 // Animation
-import { interpolate } from "./Caldro_Math";
-import { NULLFUNCTION, INFINITY } from "./Caldro_Utility_Constants";
-import { getConstructorName } from "./Caldro_Utility_Functions";
-import { arrUtils } from "./Caldro_Vectors_and_Matrices";
+import { interpolate } from "./Caldro_Math.js";
+import { NULLFUNCTION, INFINITY } from "./Caldro_Utility_Constants.js";
+import { getConstructorName } from "./Caldro_Utility_Functions.js";
+import { arrUtils } from "./Caldro_Vectors_and_Matrices.js";
 
 // [SID]
 export class AnimationGraphNode {

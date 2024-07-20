@@ -1,13 +1,13 @@
 // Special_Objects
-import { c } from "./Caldro_Canvas"
-import { classicAABB } from "./Caldro_ClassicPhysics";
-import { Point2D } from "./Caldro_Physics";
-import { getCanvasDimensions } from "./Caldro_Rendering";
-import Caldro from "./Caldro";
-import { degToRad } from "./Caldro_Math";
-import { dist2D } from "./Caldro_Utility_Functions";
-import { ORIGIN } from "./Caldro_Utility_Constants";
-import { angleBetweenPoints } from "./Caldro_Physics_Utilities";
+import { c } from "./Caldro_Canvas.js"
+import { classicAABB } from "./Caldro_ClassicPhysics.js";
+import { Point2D } from "./Caldro_Physics.js";
+import { getCanvasDimensions } from "./Caldro_Rendering.js";
+import Caldro from "./Caldro.js";
+import { degToRad } from "./Caldro_Math.js";
+import { dist2D } from "./Caldro_Utility_Functions.js";
+import { ORIGIN } from "./Caldro_Utility_Constants.js";
+import { angleBetweenPoints } from "./Caldro_Physics_Utilities.js";
 
 
 // [SID]

@@ -1,4 +1,4 @@
-import { createMainCanvas } from "./Caldro_DOM_manipulation";
+import { createMainCanvas } from "./Caldro_DOM_manipulation.js";
 
 let canvas = initCanvas()
 function initCanvas() {

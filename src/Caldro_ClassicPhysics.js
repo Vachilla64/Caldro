@@ -1,13 +1,13 @@
 // Classic_Physics master
-import { degToRad } from "./Caldro_Math";
-import { Lvector2D } from "./Caldro_Vectors_and_Matrices";
-import { clip, radToDeg } from "./Caldro_Math";
-import { INFINITY } from "./Caldro_Utility_Constants";
-import { generateRandomId } from "./Caldro_Utility_Functions";
-import { vecMath } from "./Caldro_Vectors_and_Matrices";
-import Caldro from "./Caldro";
-import { alpha, drawPolypon, drawLine, circle, line } from "./Caldro_Rendering";
-import { angleBetweenPoints } from "./Caldro_Physics_Utilities";
+import { degToRad } from "./Caldro_Math.js";
+import { Lvector2D } from "./Caldro_Vectors_and_Matrices.js";
+import { clip, radToDeg } from "./Caldro_Math.js";
+import { INFINITY } from "./Caldro_Utility_Constants.js";
+import { generateRandomId } from "./Caldro_Utility_Functions.js";
+import { vecMath } from "./Caldro_Vectors_and_Matrices.js";
+import Caldro from "./Caldro.js";
+import { alpha, drawPolypon, drawLine, circle, line } from "./Caldro_Rendering.js";
+import { angleBetweenPoints } from "./Caldro_Physics_Utilities.js";
 
 
 export class classicPhysicsWorld {

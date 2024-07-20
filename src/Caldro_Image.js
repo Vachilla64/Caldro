@@ -1,5 +1,5 @@
-import Caldro from "./Caldro";
-import { degToRad } from "./Caldro_Math";
+import Caldro from "./Caldro.js";
+import { degToRad } from "./Caldro_Math.js";
 
 export function drawImage(img, x, y, width, height, centralized = false, angle = 0, flippedX = false, flippedY = false) {
 	let context = Caldro.renderer.context;

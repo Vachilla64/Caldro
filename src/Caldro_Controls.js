@@ -1,11 +1,11 @@
 // Controls
-import { generateRandomId } from "./Caldro_Utility_Functions";
-import { timer } from "./Caldro_SpecialObjects";
-import Caldro from "./Caldro";
-import { c, getCanvas } from "./Caldro_Canvas";
-import { NULLFUNCTION } from "./Caldro_Utility_Constants";
-import { place } from "./Caldro_Utility_Functions";
-import { cosine } from "./Caldro_Math";
+import { generateRandomId } from "./Caldro_Utility_Functions.js";
+import { timer } from "./Caldro_SpecialObjects.js";
+import Caldro from "./Caldro.js";
+import { c, getCanvas } from "./Caldro_Canvas.js";
+import { NULLFUNCTION } from "./Caldro_Utility_Constants.js";
+import { place } from "./Caldro_Utility_Functions.js";
+import { cosine } from "./Caldro_Math.js";
 
 // [SID]
 export class Joystick {

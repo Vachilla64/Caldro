@@ -1,6 +1,6 @@
 // Physics_Utilities
-import { tanInverse } from "./Caldro_Math";
-import { radToDeg, degToRad } from "./Caldro_Math";
+import { tanInverse } from "./Caldro_Math.js";
+import { radToDeg, degToRad } from "./Caldro_Math.js";
 
 export function collided(a, b, type = 'aabb') {
 	if (type == 'aabb') {

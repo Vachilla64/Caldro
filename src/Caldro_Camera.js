@@ -1,16 +1,16 @@
-import { c } from "./Caldro_Canvas";
-import { classicAABB } from "./Caldro_ClassicPhysics";
-import { Point2D } from "./Caldro_Physics";
-import Caldro from "./Caldro";
-import { cosine, degToRad, sine } from "./Caldro_Math";
-import { Lvector2D, vec2, vecMath } from "./Caldro_Vectors_and_Matrices";
-import { ORIGIN } from "./Caldro_Utility_Constants";
-import { angleBetweenPoints, castRay } from "./Caldro_Physics_Utilities";
-import { dist2D, doTask, generateRandomId, getConstructorName, getRandomPointIn, place } from "./Caldro_Utility_Functions";
-import { alpha, circle, drawRay, Rect, stRect, stTriangle, triangle } from "./Caldro_Rendering";
-import { camera } from "../../projects/plain/src/setup";
-import { cordShow } from "./Caldro_Renderers";
-import { loadFromLocalStorage, saveToLocalStorage } from "./Caldro_LocalStorage";
+import { c } from "./Caldro_Canvas.js";
+import { classicAABB } from "./Caldro_ClassicPhysics.js";
+import { Point2D } from "./Caldro_Physics.js";
+import Caldro from "./Caldro.js";
+import { cosine, degToRad, sine } from "./Caldro_Math.js";
+import { Lvector2D, vec2, vecMath } from "./Caldro_Vectors_and_Matrices.js";
+import { ORIGIN } from "./Caldro_Utility_Constants.js";
+import { angleBetweenPoints, castRay } from "./Caldro_Physics_Utilities.js";
+import { dist2D, doTask, generateRandomId, getConstructorName, getRandomPointIn, place } from "./Caldro_Utility_Functions.js";
+import { alpha, circle, drawRay, Rect, stRect, stTriangle, triangle } from "./Caldro_Rendering.js";
+import { camera } from "../../projects/plain/src/setup.js";
+import { cordShow } from "./Caldro_Renderers.js";
+import { loadFromLocalStorage, saveToLocalStorage } from "./Caldro_LocalStorage.js";
 
 // [SID]
 export class Camera {

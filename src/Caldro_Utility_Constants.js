@@ -29,3 +29,34 @@ export const ANIMATION = {
     }
 
 }
+
+
+export const CURSOR_TYPES = {
+    NONE: "none", /// no pointer will be renderd by the browser
+    DEFAULT: "default", /// default cursor, usually an arrow
+    POINTER: "pointer", /// A pointing hand
+    TEXT: "text", /// A text cursor (I beam)
+    MOVE: "move", /// Indicates something can be moved
+    WAIT: "wait", /// An loading icon, usually an hourglass or ring
+    HELP: "help", /// A help cursor, usually a question mark or balloon
+    CROSSHAIR: "crosshair", /// A crosshair (+)
+    NOT_ALLOWED: "not-allowed", /// Usually a circle stroked across. Indicateds that the desired action is not allowed
+    ZOOM_IN: "zooom-in", /// Indicates zooming in
+    ZOOM_OUT: "zooom-out", /// Indicates zooming out
+    GRAB: "grab", /// Indicates something can be grabbed (clicked and dragged)
+    GRABBING: "grabbing", /// Indicates you are dragging something
+    COL_RESIZE: "col-resize", /// Indicates horizontal resizing is possible
+    ROW_RESIZE: "row-resize", /// Indicates vertical resizing is possible
+    TOP_RESIZE: "n-resize", /// Indicates upward resizing is possible
+    BOTTOM_RESIZE: "s-resize", /// Indicates downward resizing is possible
+    RIGHT_RESIZE: "e-resize", /// Indicates right-ward resizing is possible
+    LEFT_RESIZE: "w-resize", /// Indicates left-ward resizing is possible
+    TOP_LEFT_RESIZE: "nw-resize", /// Indicates top-left-ward resizing is possible
+    TOP_RIGHT_RESIZE: "ne-resize", /// Indicates top-right-ward resizing is possible
+    BOTTOM_LEFT_RESIZE: "sw-resize", /// Indicates bottom-left-ward resizing is possible
+    BOTTOM_RIGHT_RESIZE: "se-resize", /// Indicates bottom-right-ward resizing is possible
+    ALIAS: "alias", /// Indicates an alias or shortcut is to be created
+    COPY: "copy", /// Indicates that something can be copied
+    NO_DROP: "no-drop", /// Indicates that the drop action cannot be performed
+    CONTEXT_MENU: "context-menu", //// Indicates that a context menu is avalible
+}

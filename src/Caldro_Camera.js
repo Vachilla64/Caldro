@@ -2,13 +2,12 @@ import { c } from "./Caldro_Canvas.js";
 import { classicAABB } from "./Caldro_ClassicPhysics.js";
 import { Point2D } from "./Caldro_Physics.js";
 import Caldro from "./Caldro.js";
-import { cosine, degToRad, sine } from "./Caldro_Math.js";
+import { clip, cosine, degToRad, sine } from "./Caldro_Math.js";
 import { Lvector2D, vec2, vecMath } from "./Caldro_Vectors_and_Matrices.js";
-import { ORIGIN } from "./Caldro_Utility_Constants.js";
+import { NULLFUNCTION, ORIGIN } from "./Caldro_Utility_Constants.js";
 import { angleBetweenPoints, castRay } from "./Caldro_Physics_Utilities.js";
 import { dist2D, doTask, generateRandomId, getConstructorName, getRandomPointIn, place } from "./Caldro_Utility_Functions.js";
 import { alpha, circle, drawRay, Rect, stRect, stTriangle, triangle } from "./Caldro_Rendering.js";
-import { camera } from "../../projects/plain/src/setup.js";
 import { cordShow } from "./Caldro_Renderers.js";
 import { loadFromLocalStorage, saveToLocalStorage } from "./Caldro_LocalStorage.js";
 
@@ -46,10 +45,23 @@ export class Camera {
 		this.aabb.max.y = this.y + this.height * 0.5
 		return this.aabb
 	}
-
+	clipZoom(zoom, min, max){
+		if(!zoom) zoom = this.zoom.x
+		this.zoom.x = clip(zoom, min, max)
+		this.zoom.y = clip(zoom, min, max)
+	}
 	setZoom(zoom) {
 		this.zoom.x = zoom
 		this.zoom.y = zoom
+		this.width = this.canvas.width * (1 / this.zoom.x);
+		this.height = this.canvas.height * (1 / this.zoom.y);
+	}
+	addZoom(zoom) {
+		zoom *= 0.1
+        // camera.zoom += camera.zoomSpeed * camera.zoom * Caldro.time.deltatime;
+		this.zoom.x += zoom * this.zoom.x
+		this.zoom.y += zoom * this.zoom.y
+		// this.zoom
 		this.width = this.canvas.width * (1 / this.zoom.x);
 		this.height = this.canvas.height * (1 / this.zoom.y);
 	}
@@ -68,8 +80,9 @@ export class Camera {
 	}
 
 	setCanvas(canvas) {
-		if(getConstructorName(canvas) !== "HTMLCanvasElement")
+		if (getConstructorName(canvas) !== "HTMLCanvasElement") {
 			console.log("Canvas argument passed is not a canvas: ", canvas); return;
+		}
 		this.canvas = canvas;
 		this.context = canvas.getContext("2d");
 	}
@@ -99,16 +112,16 @@ export class Camera {
 	showCamera(otherCamera) {
 		otherCamera.start();
 		otherCamera.end();
-		
+
+		let sizeMultiplier = 1/this.zoom.x
 		alpha(0.4)
-		drawRay(camera, 100, camera.angle, "red", 10)
-		triangle(otherCamera.x, otherCamera.y, 100, "lime", otherCamera.angle)
-		stTriangle(otherCamera.x, otherCamera.y, 100, "white", otherCamera.angle, 10)
+		drawRay(otherCamera, 100*sizeMultiplier, otherCamera.angle, "red", 10*sizeMultiplier)
+		triangle(otherCamera.x, otherCamera.y, 100*sizeMultiplier, "lime", otherCamera.angle)
+		stTriangle(otherCamera.x, otherCamera.y, 100*sizeMultiplier, "white", otherCamera.angle, 10*sizeMultiplier)
 		alpha(0.2)
 		Rect(otherCamera.x, otherCamera.y, otherCamera.width, otherCamera.height, "white", otherCamera.angle)
-		let borderWidth = 40
-		// let borderWidth = 40 * (1/otherCamera.zoom.x)
-		stRect(otherCamera.x, otherCamera.y, otherCamera.width - borderWidth, otherCamera.height - borderWidth, "white", borderWidth, otherCamera.angle)
+		let borderWidth = 40 * sizeMultiplier
+		// stRect(otherCamera.x, otherCamera.y, otherCamera.width - borderWidth, otherCamera.height - borderWidth, "white", borderWidth, otherCamera.angle)
 		alpha(1)
 	}
 
@@ -122,20 +135,22 @@ export class Camera {
 
 	getPointer(pointer = Caldro.screen.getPointer()) {
 		if (!pointer) return
-		let magnificationX = ((this.canvas.width * (1 / this.zoom.x)) / this.canvas.width)
-		let magnificationY = ((this.canvas.height * (1 / this.zoom.y)) / this.canvas.height)
+		let screenSpace = this.canvas
+		let magnificationX = ((screenSpace.width * (1 / this.zoom.x)) / screenSpace.width)
+		let magnificationY = ((screenSpace.height * (1 / this.zoom.y)) / screenSpace.height)
 		let point = new Point2D(
-			this.x + (pointer.x * magnificationX) - ((this.canvas.width / 2) * magnificationX)
+			this.x + (pointer.x * magnificationX) - ((screenSpace.width / 2) * magnificationX)
 			,
-			this.y + (pointer.y * magnificationY) - ((this.canvas.height / 2) * magnificationY)
+			this.y + (pointer.y * magnificationY) - ((screenSpace.height / 2) * magnificationY)
 		);
-		point = castRay(this.x, this.y, this.angle + angleBetweenPoints(this,point), dist2D(this, point))
+		point = castRay(this.x, this.y, this.angle + angleBetweenPoints(this, point), dist2D(this, point))
 		return point
 	}
 
 
 	start() {
 		this.persistStart()
+		this.clipZoom(null, 2, 20)
 		if (this.autoUpdateAssignedCanvas) this.setCanvas(Caldro.renderer.canvas);
 		this.capturing = true;
 		this.pre_shot();
@@ -152,11 +167,11 @@ export class Camera {
 
 		// save the context so we can do weird stuff
 		cc.save();
-		
+
 		// scale the canvas for zoom. I apply this first cos the other transformations already take the scale into considerations throught the width and height of the camera
 		cc.scale(this.zoom.x, this.zoom.y)
 		// translate the canvas origin to the camera center but at 0, 0
-		cc.translate(this.width/2, this.height/2)
+		cc.translate(this.width / 2, this.height / 2)
 		// rotate the canvas here so that eveything takes on this rotation properly
 		cc.rotate(-radAngle);
 		// translate the canavs to the x and y of the camera, since translates stack, this already takes into account the center translation from ealier
@@ -182,7 +197,14 @@ export class Camera {
 		this.post_shot();
 	};
 
-
+	mimicCamera(referrence_camera = this) {
+		this.x = referrence_camera.x;
+		this.y = referrence_camera.y;
+		this.zoom = referrence_camera.zoom;
+		// this.actualOffsetX = referrence_camera.actualOffsetX;
+		// this.actualOffsetY = referrence_camera.actualOffsetY;
+		this.angle = referrence_camera.angle;
+	};
 }
 
 /// acting as a backup, will remove soon
@@ -388,7 +410,7 @@ export class Cimera {
 		// Rect(otherCamera.x, otherCamera.y, otherCamera.width, otherCamera.height, "white", otherCamera.angle)
 		cordShow(otherCamera, "lime", 100, 2)
 		otherCamera.end();
-		
+
 		alpha(0.4)
 		drawRay(camera, 100, camera.angle, "red", 10)
 		triangle(otherCamera.x, otherCamera.y, 100, "lime", otherCamera.angle)
@@ -537,4 +559,36 @@ export class Cimera {
 		this.attachment = null;
 		this.attached = false;
 	};
+}
+
+// current Cammra is from the game (camera beeing seen),
+// camera is the caemra to make a devcam
+// otherCames is the game camea
+export function setupDevcamControls(currentCamera, devCamera, otherCamera, keyStateHandler, speed = 200, zoomSpeed = 3) {
+	keyStateHandler.addKey(0, "m", NULLFUNCTION, function () {
+		devCamera.mimicCamera(otherCamera)
+	})
+	keyStateHandler.addKey(0, "u", NULLFUNCTION, function () {
+		devCamera.addZoom(zoomSpeed)
+	})
+	
+	keyStateHandler.addKey(0, "o", NULLFUNCTION, function () {
+		devCamera.addZoom(-zoomSpeed)
+	})
+
+	keyStateHandler.addKey(0, "i", NULLFUNCTION, function () {
+		devCamera.y -= speed * (1 / devCamera.zoom.y) * Caldro.time.deltatime;
+	})
+
+	keyStateHandler.addKey(0, "j", NULLFUNCTION, function () {
+		devCamera.x -= speed * (1 / devCamera.zoom.x) * Caldro.time.deltatime;
+	})
+
+	keyStateHandler.addKey(0, "k", NULLFUNCTION, function () {
+		devCamera.y += speed * (1 / devCamera.zoom.y) * Caldro.time.deltatime;
+	})
+
+	keyStateHandler.addKey(0, "l", NULLFUNCTION, function () {
+		devCamera.x += speed * (1 / devCamera.zoom.x) * Caldro.time.deltatime;
+	})
 }

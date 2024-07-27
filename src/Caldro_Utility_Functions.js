@@ -1,4 +1,8 @@
-"use strict"; // Utility_Functions
+"use strict";
+import { ceilToNearestMutliple, floorToNearestMutliple } from "./Caldro_Math";
+import { vec2 } from "./Caldro_Vectors_and_Matrices";
+
+// Utility_Functions
 
 export const doings = {
 	ids: [],
@@ -75,7 +79,7 @@ export function timeoutTask(task, timeout, oneshotTask = true) {
 	timedTasks.push(Task)
 	return Task;
 }
-export function deleteTimeoutTask(task){
+export function deleteTimeoutTask(task) {
 	timedTasks = timedTasks.filter((Task) => {
 		return task != Task
 	})
@@ -85,7 +89,7 @@ export function updateTimedTasks() {
 		task.time += Caldro.time.deltatime;
 		if (task.time > task.timeout) {
 			task.task();
-			if(task.isOneShot){
+			if (task.isOneShot) {
 				task.toDelete = true;
 			}
 		}
@@ -142,7 +146,7 @@ export var timeMap = [
 
 export function secondsToTime(amountOfSeconds, showAll = false) {
 	let secondsLeft = amountOfSeconds;
-	let timeObject = {seconds:0}
+	let timeObject = { seconds: 0 }
 	for (let i = timeMap.length - 1; i >= 0; --i) {
 		let time_div = Math.floor(secondsLeft / timeMap[i].valueInSeconds)
 		if (time_div == 0 && showAll == false) continue;
@@ -164,32 +168,43 @@ export function timeToSeconds(seconds = 0, minutes = 0, hours = 0, days = 0, wee
 	return totalSeconds;
 }
 
-function counter(min = 0, max = 10, elapsedTime = Caldro.time.elapsedTime){
+function counter(min = 0, max = 10, elapsedTime = Caldro.time.elapsedTime) {
 	let range = max - min;
-	if(range <= 0) return min
-	let time = elapsedTime - Math.floor(elapsedTime/range)*range
+	if (range <= 0) return min
+	let time = elapsedTime - Math.floor(elapsedTime / range) * range
 	time = toDecimalPlace(time, 2)
 	return min + time
 }
 
+export function snapCoordinatesToGrid(x, y, gridSize) {
+	let snappedCoordinates = new vec2(x, y)
+	snappedCoordinates.x = floorToNearestMutliple(x, gridSize)
+	snappedCoordinates.y = floorToNearestMutliple(y, gridSize)
 
+	if (x < 0)
+		snappedCoordinates.x -= gridSize
 
+	if (y < 0)
+		snappedCoordinates.y -= gridSize
 
-export function generateRandomId(model = "XXXXXXXX-XXXX-4XXX-"+['8','9','a','b'][Math.round(Math.random()*3)]+"XXX-XXXXXXXXXXXX", combinations = "0/1/2/3/4/5/6/7/8/9/a/b/c/d/e/f") {
+	return snappedCoordinates
+}
+
+export function generateRandomId(model = "XXXXXXXX-XXXX-4XXX-" + ['8', '9', 'a', 'b'][Math.round(Math.random() * 3)] + "XXX-XXXXXXXXXXXX", combinations = "0/1/2/3/4/5/6/7/8/9/a/b/c/d/e/f") {
 	let id = model;
 	let hex = combinations.split('/')
 	id = id.replace(/X/g, () => {
-		return hex[Math.round(Math.random()*(hex.length-1))]
+		return hex[Math.round(Math.random() * (hex.length - 1))]
 	})
 	return id
 }
 
 
 export function psuedoUUID() {
-	let id = "XXXXXXXX-XXXX-4XXX-"+['8','9','a','b'][Math.round(Math.random()*3)]+"XXX-XXXXXXXXXXXX";
+	let id = "XXXXXXXX-XXXX-4XXX-" + ['8', '9', 'a', 'b'][Math.round(Math.random() * 3)] + "XXX-XXXXXXXXXXXX";
 	let hex = "0123456789abcdef".split('')
 	id = id.replace(/X/g, () => {
-		return hex[Math.round(Math.random()*(hex.length-1))]
+		return hex[Math.round(Math.random() * (hex.length - 1))]
 	})
 	return id
 }
@@ -203,7 +218,7 @@ export function chance(percentageSuccess = 50) {
 	return (Math.random()) <= percentageSuccess * 0.01
 }
 
-export function greater(valuesToCompare){
+export function greater(valuesToCompare) {
 	let max = -INFINITY
 	for (let i = 0; i < arguments.length; ++i) {
 		max = Math.max(max, arguments[i])
@@ -211,7 +226,7 @@ export function greater(valuesToCompare){
 	return max
 }
 
-export function lesser(valuesToCompare){
+export function lesser(valuesToCompare) {
 	let min = INFINITY
 	for (let i = 0; i < arguments.length; ++i) {
 		min = Math.min(min, arguments[i])
@@ -220,18 +235,18 @@ export function lesser(valuesToCompare){
 }
 
 let heavy;
-function startHeavyTask(magnitude = 100){
-	if(heavy)clearTimeout(heavy);
-	heavy = setInterval(()=>{
-		for(let i = 0; i < magnitude; ++i){
+function startHeavyTask(magnitude = 100) {
+	if (heavy) clearTimeout(heavy);
+	heavy = setInterval(() => {
+		for (let i = 0; i < magnitude; ++i) {
 			let num = 0;
-			for(let i = 0; i < 10000; ++i){
+			for (let i = 0; i < 10000; ++i) {
 				num += Math.sqrt(Math.sin(Math.cos(Math.tan(Math.sqrt(Math.random())))))
 			}
 		}
-	}, 30/1000)
+	}, 30 / 1000)
 }
-function stopHeavyTask(){
+function stopHeavyTask() {
 	clearTimeout(heavy)
 }
 
@@ -335,7 +350,7 @@ export function place(point, target) {
 		point.x = target.x
 		point.y = target.y
 	} else {
-		console.error("A variable passed to the function 'place' is udefinded\nPoint:" + point + "\n" + "Where: " + target)
+		console.error("A variable passed to the function 'place' is udefinded\n\npoint:" + point + "\n" + "Where: " + target)
 	}
 }
 

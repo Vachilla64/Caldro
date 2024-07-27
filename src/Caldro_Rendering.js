@@ -1,5 +1,4 @@
 // Rendering
-import { createMainCanvas } from "./Caldro_DOM_manipulation.js";
 import { NULLFUNCTION } from "./Caldro_Utility_Constants.js";
 import Caldro from "./Caldro.js";
 import { degToRad } from "./Caldro_Math.js";
@@ -11,13 +10,15 @@ import { clip } from "./Caldro_Math.js";
 import { INFINITY } from "./Caldro_Utility_Constants.js";
 import { getConstructorName } from "./Caldro_Utility_Functions.js";
 import { drawImage, drawImagePortion } from "./Caldro_Image.js";
-// In your canvas module (e.g., canvas.js)
 
-
+/// why reinvent the wheel though, although this oculs be a nice proxy between a 2d context and a webgl context
+const renderingInfo = {
+	fill: null
+}
 
 export const cc = c.getContext("2d")
 c.style.position = 'fixed';
-c.onresize = NULLFUNCTION;
+// c.onresize = NULLFUNCTION;
 
 export function getCanvasDimensions(canvas) {
 	return {
@@ -87,17 +88,14 @@ export function adjustCanvas(canvas = c, width = window.innerWidth, height = win
 	canvas.font = '10px Arial';
 	canvas.orientation = (canvas.w == canvas.max ? 'landscape' : 'potrait')
 	Caldro.rendering.context.imageSmoothingEnabled = Caldro.rendering.imageSmoothing;
-	Caldro.rendering.context.lineCap = "bezel"
-	Caldro.rendering.context.lineJoin = "bezel"
+	Caldro.rendering.context.lineCap = "round"
+	Caldro.rendering.context.lineJoin = "round"
 };
 
-export function adjustCanvasToRatio(w = 1, h = 1) {
+function adjustCanvasToRatio(w = 1, h = 1) {
 
 }
 
-let renderingInfo = {
-	fill: null
-}
 
 export function saveRenderingContext(context = Caldro.rendering.context) {
 	context.save();
@@ -144,11 +142,11 @@ export function rect(x = 0, y = 0, w = c.width, h = c.height, color = CALDGRAY) 
 	// rounding down is impractical when things are scaled down lover than 0.5
 	// Caldro.rendering.context.fillRect(x, y, Math.round(w), Math.round(h));
 }
-export 
-function strect(x, y, w, h, color, lineWidth) {
+export function strect(x, y, w, h, color, lineWidth) {
 	strokeColor(color);
 	Caldro.rendering.context.lineWidth = lineWidth
-	Caldro.rendering.context.strokeRect(x, y, w, h);
+	let halftLineWidth = lineWidth*0.5;
+	Caldro.rendering.context.strokeRect(x+halftLineWidth, y+halftLineWidth, w-halftLineWidth, h-halftLineWidth);
 }
 
 export function clrect(x, y, w, h) {
@@ -207,16 +205,31 @@ export function clCircle(x, y, r) {
 	Caldro.rendering.context.clip();
 }
 
-export function line(a, b, c, d, col, lw) {
+export function line(a, b, c, d, color, lineWidth) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.moveTo(a, b);
 	Caldro.rendering.context.lineTo(c, d);
 	Caldro.rendering.context.closePath();
-	strokeColor(col)
-	Caldro.rendering.context.lineWidth = lw
+	strokeColor(color)
+	Caldro.rendering.context.lineWidth = lineWidth
 	Caldro.rendering.context.stroke();
 }
 
+export function drawVerticiesAsPath(verticies, color, lineWidth){
+	if(verticies.length < 1) return;
+	Caldro.rendering.context.beginPath();
+	Caldro.rendering.context.moveTo(verticies[0].x, verticies[0].y);
+	for(let vertex of verticies){
+		Caldro.rendering.context.lineTo(vertex.x, vertex.y);
+	}
+	Caldro.rendering.context.closePath();
+	strokeColor(color)
+	Caldro.rendering.context.lineWidth = lineWidth
+	Caldro.rendering.context.stroke();
+}
+
+
+/// TODO: figure this out, i know i want this but 
 export function drawLine(startX, startY, length = 100, angle = 0, color = "skyblue", lineWidth = 2) {
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.moveTo(startX, startY);
@@ -245,11 +258,12 @@ export function font(size = 30, font = 'Arial', thickness = "") {
 	return fnt;
 }
 
-export function txt(text, x, y, font = '30px Arial', fill = 'skyblue', angle = 0, alignment = "center", baseLine = "middle") {
+export function txt(text, x, y, font = '30px Arial', color = null, angle = 0, alignment = "center", baseLine = "middle") {
 	Caldro.rendering.context.font = font
 	Caldro.rendering.context.textAlign = alignment
 	Caldro.rendering.context.textBaseline = baseLine
-	fillColor(fill)
+	// Caldro.rendering.context.lineJoin = "round"
+	fillColor(color)
 	fillText(text, x, y, angle)
 }
 
@@ -310,8 +324,8 @@ export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font
 	Caldro.rendering.context.textBaseline = baseline
 	Caldro.rendering.context.font = font;
 	Caldro.rendering.context.lineWidth = 5
-	Caldro.rendering.context.lineCap = "round";
-	Caldro.rendering.context.lineJoin = "round";
+	// Caldro.rendering.context.lineCap = "round";
+	// Caldro.rendering.context.lineJoin = "round";
 
 	if (lineHeight == null) {
 		lineHeight = parseFloat(font) * 1.1

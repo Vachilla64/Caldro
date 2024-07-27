@@ -323,6 +323,7 @@ export class WAAPIAudioManager {
 		this.masterGainNode = null;
 		this.masterCompressor = null;
 		this.masterPlaybackRate = null;
+		this.nodeGraphStart = null;
 		this.nodeGraphEnd = null;
 	}
 	getMasterVolume() {
@@ -809,24 +810,24 @@ export class WAAPIAudioManager {
 			this.onAudioLoaded(id)
 		}, id)
 	}
-	initialize(load = true, onError) {
+	initialize(onError) {
 		if (!this.active) return;
 		this.audioContext = createAudioContext();
 		if (!this.audioContext) {
 			onError();
+			WAAPIAudioManager.error("Audio Context could not be created")
 			return;
 		}
 		this.audioContext.resume();
 
 		this.masterGainNode = this.audioContext.createGain();
 		this.masterCompressor = this.audioContext.createDynamicsCompressor();
-
 		this.masterCompressor.connect(this.masterGainNode);
 		this.masterGainNode.connect(this.audioContext.destination)
+		this.nodeGraphStart = this.masterCompressor
 		this.nodeGraphEnd = this.masterCompressor
-		if (load) {
-			this.loadQueue();
-		}
+		this.loadQueue();
+		this.initialized = true;
 	}
 	loadAudioBuffer(src, callback, id = null) {
 		let xReq = new XMLHttpRequest();
@@ -873,6 +874,21 @@ export class WAAPIAudioManager {
 	static error(message) {
 		let msg = message.substring(0, 1).toUpperCase() + message.substring(1)
 		console.error("[WAAPIAudioManager Error!]:\n" + "'" + msg + "'")
+	}
+
+	playOsc(type = "sine", length = 1, frequency = 440, gain = 1){
+		if(this.initialized){
+			let audioCtx = this.audioContext;
+			let osc = audioCtx.createOscillator()
+			let gainNode = audioCtx.createGain()
+			gainNode.gain.value = gain
+			osc.type = type
+			osc.frequency.value = frequency;
+			osc.connect(gainNode);
+			gainNode.connect(this.nodeGraphStart)
+			osc.start(0)
+			osc.stop(audioCtx.currentTime + length)
+		}
 	}
 }
 

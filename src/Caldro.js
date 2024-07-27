@@ -1,6 +1,6 @@
 // Caldro
 import { keyStateHandler, Pointer } from "./Caldro_Controls.js";
-import { CALDBLUE, INFINITY, NULLFUNCTION } from "./Caldro_Utility_Constants.js";
+import { CALDBLUE, CURSOR_TYPES, INFINITY, NULLFUNCTION } from "./Caldro_Utility_Constants.js";
 import { c } from "./Caldro_Canvas.js";
 import {
 	rect,
@@ -13,7 +13,6 @@ import {
 import { place, randomNumber } from "./Caldro_Utility_Functions.js";
 import { arraySum } from "./Caldro_Utility_Functions.js";
 import { init_controls } from "./Caldro_Controls.js";
-import { Lvector2D, vec2 } from "./Caldro_Vectors_and_Matrices.js";
 import { getConstructorName } from "./Caldro_Utility_Functions.js";
 import { spriteSheetManager } from "./Caldro_Image.js";
 import { canvasImageManager } from "./Caldro_Image_Canvas_Manager.js";
@@ -21,12 +20,12 @@ import { imageHandler } from "./Caldro_Image.js";
 /* var CaldroCam = new camera();
 var CaldroPs = new particleSystem();
 var CaldroKeys = new keyStateHandler(); */
-var CaldroKeys = new keyStateHandler();
 // let c = getCanvas();
 
-export var CaldroSSM = new spriteSheetManager ();
-export var CaldroCIM = new canvasImageManager();
-export var CaldroIH = new imageHandler();
+export const CaldroSSM = new spriteSheetManager ();
+export const CaldroCIM = new canvasImageManager();
+export const CaldroIH = new imageHandler();
+export const CaldroKeys = new keyStateHandler();
 
 
 
@@ -57,7 +56,7 @@ var Caldro = {
 			// ct._lastUpdateElapsedTime += deltatime
 
 			if (ct._maxFPS) {
-				if ((deltatime < 1 / ct._maxFPS)) {
+				if ((deltatime < (1 / ct._maxFPS))) {
 					return false;
 				}
 				ct._lastUpdateElapsedTime = 0
@@ -145,7 +144,6 @@ var Caldro = {
 	},
 
 	renderer: {
-		initializedImputControls: false,
 		canvas: c,
 		context: c.getContext('2d'),
 		setRenderingCanvas: function (canvas) {
@@ -162,20 +160,7 @@ var Caldro = {
 				context: this.context
 			}
 		},
-		hidingCursor: false,
-		cursorType: "",
-		shouldHideCursor: function (bool = false) {
-			if (bool) {
-				this.canvas.style.cursor = "none"
-			} else {
-				this.canvas.style.cursor = this.cursorType;
-			}
-			this.hidingCursor = bool
-		},
-		setCursorType: function (cursorType = "arrow") {
-			this.cursorType = this.canvas.style.cursor = cursorType;
-		},
-
+		
 		_pixelatorCanvas: document.createElement("canvas"),
 		glow: true,
 		alpha: true,
@@ -229,7 +214,7 @@ var Caldro = {
 	screen: {
 		clicks: 0,
 		pointers: new Array(),
-		checkForPointerIn: function (area) {
+		checkForPointerIn(area) {
 			for (let point of Caldro.screen.pointers) {
 				if (!point) continue
 				if (pointIsIn(point, area)) {
@@ -238,7 +223,7 @@ var Caldro = {
 			}
 			return false;
 		},
-		getFirstPointerIn: function (area) {
+		getFirstPointerIn(area) {
 			for (let point of Caldro.screen.pointers) {
 				if (!point) continue
 				if (pointIsIn(point, area)) {
@@ -247,7 +232,7 @@ var Caldro = {
 			}
 			return null;
 		},
-		getPointersIn: function (area) {
+		getPointersIn(area) {
 			let pointers = new Array();
 			let foundOne = false
 			for (let point of Caldro.screen.pointers) {
@@ -263,7 +248,7 @@ var Caldro = {
 		getPointer(ID = 0){
 			return this.pointers[ID]
 		},
-		addPointer: function (x, y, id = generateRandomId()) {
+		addPointer(x, y, id = generateRandomId()) {
 			this.pointers.push(new Pointer(x, y, 0))
 		},
 		getPointerByID(ID) {
@@ -274,12 +259,12 @@ var Caldro = {
 				return null
 			}
 		},
-		updatePointers: function (touchEvent, type = "idle") {
-			let event = touchEvent;
-			let pointer = new vec2(0, 0);
+		updatePointers(event, type = "idle") {
+			const changedTouches = event.changedTouches;
+			let pointer;
 			if (event.changedTouches) {
+				pointer = this.pointers[changedTouches[0].identifier]
 				if (type == "start") {
-					const changedTouches = event.changedTouches;
 					for (let i = 0; i < changedTouches.length; i++) {
 						const touch = changedTouches[i];
 						let point = {
@@ -292,7 +277,6 @@ var Caldro = {
 						this.pointers[touch.identifier] = point
 					}
 				} else if (type == "move") {
-					const changedTouches = event.changedTouches;
 					for (let i = 0; i < changedTouches.length; i++) {
 						const touch = changedTouches[i];
 						let point = this.pointers[touch.identifier];
@@ -304,59 +288,92 @@ var Caldro = {
 						this.pointerAdjustment(point)
 					}
 				} else if (type == "end") {
-					const changedTouches = event.changedTouches;
 					for (let i = 0; i < changedTouches.length; i++) {
 						const touch = changedTouches[i];
 						if (this.pointers[touch.identifier]) {
 							delete this.pointers[touch.identifier];
-							// console.log(`Touch ${touch.identifier} ended`);
 						}
 					}
 				}
 			} else {
-				// console.log(touchEvent)
+				let ID = event.button
 				if (type == "start") {
-					const touch = touchEvent;
-					let point = {
-						x: touch.pageX,
-						y: touch.pageY,
-						ID: touch.button
-					};
-					place(pointer, point)
-					this.pointerAdjustment(point)
-					this.pointers[touch.button] = point
+					/// Add a new pointer to the list
+					// const touch = event;
+					// let point = {
+					// 	x: touch.pageX,
+					// 	y: touch.pageY,
+					// 	ID: touch.button /// could be used to differntiate left and right clicks
+					// };
+					pointer = new Pointer(event.pageX, event.pageY, ID)
+					this.pointerAdjustment(pointer)
+					this.pointers[ID] = pointer
 				} else if (type == "move") {
-					const touch = touchEvent;
-					let point = this.pointers[touch.button];
-					if (point) {
-						point.x = touch.clientX;
-						point.y = touch.clientY;
+					/// upaate the pointer in the list, if none, then add a new one
+					// const touch = event;
+
+					/// check if the pointer already exsists
+					pointer = this.pointers[ID];
+					if (pointer) {
+						// point.x = touch.clientX;
+						// point.y = touch.clientY;
+
+						/// if it does, update the position to the new one
+						pointer.x = event.clientX;
+						pointer.y = event.clientY;
 					} else {
-						point = {
-							x: touch.pageX,
-							y: touch.pageY,
-							ID: touch.button
-						};
+						// point = {
+						// 	x: touch.pageX,
+						// 	y: touch.pageY,
+						// };
+
+						/// if it doesn't, create a new poknter
+						pointer = new Pointer(event.pageX, event.pageY, ID)
 					}
-					place(pointer, point)
-					this.pointerAdjustment(point)
-					this.pointers[touch.button] = point
+					
+					this.pointerAdjustment(pointer)
+					this.pointers[ID] = pointer
 				} else if (type == "end") {
-					const touch = touchEvent
-					if (this.pointers[touch.button]) {
-						delete this.pointers[touch.button];
-						// console.log(`Touch ${touch.identifier} ended`);
+					const touch = event
+					// if (this.pointers[touch.button]) {
+					// 	// delete this.pointers[touch.button];
+					// }
+
+					/// delete the pointer from the list if it esisits
+					if (this.pointers[ID]) {
+						// delete this.pointers[ID];
 					}
 				}
 			}
+
 			return pointer;
 		},
-		showPointers: function () {
+		showPointers() {
 			for (let point of this.pointers) {
 				cordShow(point)
 			}
 		},
-		pointerAdjustment: function () { }
+		pointerAdjustment() { },
+		clearAllPointers(){
+			console.log(this.pointers)
+			this.pointers.length = 0
+			console.log(this.pointers)
+		},
+
+
+		hidingCursor: false,
+		cursorType: "",
+		shouldHideCursor(bool = false) {
+			if (bool) {
+				Caldro.renderer.canvas.style.cursor = "none"
+			} else {
+				Caldro.renderer.canvas.style.cursor = this.cursorType;
+			}
+			this.hidingCursor = bool
+		},
+		setCursorType(cursorType = "default") {
+			this.cursorType = Caldro.renderer.canvas.style.cursor = cursorType;
+		},
 	},
 
 	debug(info, source = "Annonymous") {
@@ -461,6 +478,10 @@ var Caldro = {
 	}
 }
 
+window.addEventListener("error", ()=>{
+	Caldro.engine.KILL();
+})
+
 
 
 const INFINITE_UPDATE_LOOP = function () {
@@ -484,7 +505,6 @@ const INFINITE_UPDATE_LOOP = function () {
 let startedLoop = false
 // start the infinite loop handled by Caldro
 const START_INFINITE_LOOPS = function () {
-	console.log("running")
 	try {
 		if (startedLoop) console.error("Cannot initialize the infinite loop more than once")
 		INFINITE_UPDATE_LOOP()
@@ -497,5 +517,11 @@ const START_INFINITE_LOOPS = function () {
 try {
 	onCaldroLoad();
 } catch { }
+
+window.addEventListener("error", ()=>{
+	Caldro.engine.KILL();   
+	Caldro.screen.setCursorType(CURSOR_TYPES.DEFAULT)
+    console.warn("Killed the Engine to prevent infinite error messages")
+})
 
 export default Caldro

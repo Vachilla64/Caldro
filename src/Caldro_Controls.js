@@ -89,9 +89,9 @@ export var events = {
 	pointStartEvent() { },
 	pointMoveEvent() { },
 	pointEndEvent() { },
-	mouseMiddleDown(){},
-	mouseScrollUp(){},
-	mouseScrollDown(){},
+	mouseMiddleDown() { },
+	mouseScrollUp() { },
+	mouseScrollDown() { },
 }
 
 export function touchDoubleTapEvent() { };
@@ -138,8 +138,8 @@ function getPointersFromEvent(event) {
 	return point
 }
 
-export function init_touch_controls(canvas = c) {
-	canvas.addEventListener('touchstart', function (event) {
+export function init_touch_controls(DOMElement = c) {
+	DOMElement.addEventListener('touchstart', function (event) {
 		// console.log((logTouchEvent(event)))
 
 		if (Caldro.events.handleTouchEvents) {
@@ -149,7 +149,7 @@ export function init_touch_controls(canvas = c) {
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			// touchstartEvent(pointer);
 
-			/// call the general event provied when the canvas is touched
+			/// call the general event provied when the DOMElement is touched
 			events.pointStartEvent(pointer, "touch")
 
 			/// handle swipe events start
@@ -170,7 +170,7 @@ export function init_touch_controls(canvas = c) {
 	}, false)
 
 
-	canvas.addEventListener('touchmove', function (event) {
+	DOMElement.addEventListener('touchmove', function (event) {
 		if (Caldro.events.handleTouchEvents) {
 			event.preventDefault()
 			let pointer = Caldro.screen.updatePointers(event, "move")
@@ -181,7 +181,7 @@ export function init_touch_controls(canvas = c) {
 	})
 
 
-	canvas.addEventListener('touchend', function (event) {
+	DOMElement.addEventListener('touchend', function (event) {
 		// console.log((logTouchEvent(event)))
 
 		if (Caldro.events.handleTouchEvents) {
@@ -215,10 +215,10 @@ export function init_touch_controls(canvas = c) {
 	})
 }
 
-export function init_mouse_controls(canvas = c) {
-	canvas.addEventListener("mousedown", function (event) {
+export function init_mouse_controls(DOMElement = c) {
+	DOMElement.addEventListener("mousedown", function (event) {
 		if (Caldro.events.handleMouseEvents) {
-			if(event.button == 1) {
+			if (event.button == 1) {
 				events.mouseMiddleDown();
 				return;
 			}
@@ -234,8 +234,8 @@ export function init_mouse_controls(canvas = c) {
 			}
 		}
 	})
-	
-	canvas.addEventListener("mousemove", function (event) {
+
+	DOMElement.addEventListener("mousemove", function (event) {
 		if (Caldro.events.handleMouseEvents) {
 			event.preventDefault();
 			let pointer = Caldro.screen.updatePointers(event, "move")
@@ -243,8 +243,8 @@ export function init_mouse_controls(canvas = c) {
 			events.pointMoveEvent(pointer, "mouse");
 		}
 	})
-	
-	canvas.addEventListener("mouseup", function (e) {
+
+	DOMElement.addEventListener("mouseup", function (e) {
 		if (Caldro.events.handleMouseEvents) {
 			event.preventDefault();
 			let pointer = Caldro.screen.updatePointers(e, "end")
@@ -254,9 +254,18 @@ export function init_mouse_controls(canvas = c) {
 		}
 	})
 
+	/// stop mouse pointers form being pressed
+	DOMElement.addEventListener("blur", () => {
+		console.log("")
+		Caldro.screen.clearAllPointers()
+	})
 
-	canvas.addEventListener("mousewheel", function (event) {
+
+	DOMElement.addEventListener("mousewheel", function (event) {
 		if (Caldro.events.handleMouseEvents) {
+			if (event.ctrlKey) {
+				event.preventDefault()
+			}
 			if (event.deltaY < 0) {
 				events.mouseScrollUp()
 			} else {
@@ -266,20 +275,22 @@ export function init_mouse_controls(canvas = c) {
 	})
 }
 
-export function init_keyboard_controls(canvas) {
-	c.onkeydown = () => {
-		console.log('fjlsadjl')
-	}
-	canvas.addEventListener("keydown", function (event) {
+export function init_keyboard_controls(DOMElement) {
+	DOMElement.addEventListener("keydown", (event) => {
 		Caldro.info.currentKeyStateHandler.activateKeyState(event);
 		keyboard.addKey(event)
 		keyPressHandler(event.which)
 	}, false)
 
-	canvas.addEventListener("keyup", function (event) {
+	DOMElement.addEventListener("keyup", (event) => {
 		Caldro.info.currentKeyStateHandler.deactivateKeyState(event);
 		keyboard.removeKey(event)
 		keyEndHandler(event.which)
+	})
+
+	/// stop keyboard keuys form being pressed
+	DOMElement.addEventListener("blur", () => {
+		keyboard.removeAllKeys()
 	})
 }
 
@@ -309,6 +320,9 @@ export var keyboard = {
 			}
 		}
 	},
+	removeAllKeys() {
+		this.currentKeys.length = 0
+	},
 	parseKey(key) {
 		if (key == "space") {
 			key = ' '
@@ -334,13 +348,13 @@ export var keyboard = {
 		SPACE: " "
 	}
 }
-
+window.keyboard = keyboard
 export function init_controls() {
 	if (!Caldro.events.initializedImputControls) {
 		let canvas = getCanvas();
 		init_touch_controls(canvas);
 		init_mouse_controls(canvas);
-		init_keyboard_controls(canvas);
+		init_keyboard_controls(window);
 		Caldro.events.initializedImputControls = true
 	} else {
 		console.error("Can't init controls more than once")
@@ -394,6 +408,7 @@ export class keyStateHandler {
 			}
 		})
 	}
+	/// TODO apparendtly dirction keys and a few others are nt findable
 	getKey(keyInfo) {
 		let key = undefined;
 		if (typeof keyInfo == "number") {

@@ -1,5 +1,5 @@
 // Classic_Physics master
-import { Lvector2D, vec2 } from "./Caldro_Vectors_and_Matrices.js";
+import { Lvector2D, vec2D } from "./Caldro_Vectors_and_Matrices.js";
 import { clip, radToDeg, degToRad } from "./Caldro_Math.js";
 import { INFINITY } from "./Caldro_Utility_Constants.js";
 import { dist2D, doTask, generateRandomId } from "./Caldro_Utility_Functions.js";
@@ -460,11 +460,11 @@ export class classicPhysicsWorld {
         }
     }
 
-    stepBodies(deltatime, repetitions, iterations) {
+    stepBodies(deltatime, substep, iterations) {
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
             body.inCollision = false
-            body.step(deltatime, this.gravity, repetitions === (iterations - 1))
+            body.step(deltatime, this.gravity, substep == (iterations-1))
             // body.applyFriction(body.staticFriction, deltatime)
         }
     }
@@ -846,8 +846,9 @@ export class classicPhysicsWorld {
                 stDrawPolypon(body.getTransformedVerticies(), lineColour, lineWidth)
                 let vertex1 = body.getTransformedVerticies()[0]
                 drawRay(body.position, dist2D(body.position, vertex1), body.angle + vertex1.angle, lineColour, lineWidth)
-                line(body.position.x, body.position.y, vertex1.x, vertex1.y, lineColour, lineWidth)
+                // line(body.positi/on.x, body.position.y, vertex1.x, vertex1.y, lineColour, lineWidth)
             }
+            // line(body.position, vecMath.add(body.position, body.linearVelocity))
         } else {
             body.render(body)
         }
@@ -1574,24 +1575,34 @@ export class classicPhysics {
                     acceleration = vecMath.add(acceleration, vecMath.multiply(gravity, deltatime))
                 }
 
-                this.linearVelocity = vecMath.add(this.linearVelocity, acceleration)
+                vecMath.add(this.linearVelocity, acceleration, true)
 
-
+                /// clamp linear velocities
                 this.linearVelocity.x = clip(this.linearVelocity.x, this.linearVelocityCap.minX, this.linearVelocityCap.maxX)
                 this.linearVelocity.y = clip(this.linearVelocity.y, this.linearVelocityCap.minY, this.linearVelocityCap.maxY)
-                this.oldPosition.copy(this.position)
-                if (this.lockedX) { this.linearVelocity.x = 0; }
-                if (this.lockedY) { this.linearVelocity.y = 0; }
-                if (this.lockedAngle) { this.angularVelocity = 0; }
+
+                /// update the old position
+                vecMath.clone(this.oldPosition, this.position)
+
 
                 let newPosition = (vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime)))
-                this.position.x = newPosition.x
-                this.position.y = newPosition.y
 
+                //// update positions if they are not locked
+                if (!this.lockedX)
+                    this.position.x = newPosition.x
+                if (!this.lockedY)
+                    this.position.y = newPosition.y
+
+                /// update angular acceleration and angles if they are not locked
                 this.angularVelocity += this.angularAcceleration * deltatime
-                this.angle += this.angularVelocity * deltatime
+                if (!this.lockedAngle)
+                    this.angle += this.angularVelocity * deltatime
 
+
+                /// reset the forces to be aded nex frame
                 this.force = new Lvector2D(0, 0)
+
+                /// if motion occured, update verticies
                 this.transformUpdateRequired = true;
                 this.aabbUpdateRequired = true;
 
@@ -1772,7 +1783,10 @@ export class classicPhysics {
             if (shapeType = classicPhysicsWorld.shapeType.box) {
                 return (1 / 12) * mass * (body.width ** 2 + body.height ** 2)
             } else {
-                console.log("No Inertia calc for plygons yet")
+                let verticies = body.getTransformedVerticies()
+                // const area = classicPhysics.calculatePolygonArea(verticies);
+                // const centroid = classicPhysics.calculatePolygonCentroid(verticies, area);
+                return classicPhysics.calculatePolygonInertia(verticies, mass);
             }
     }
 
@@ -1842,6 +1856,9 @@ export class classicPhysics {
      * @returns {{x: number, y: number}} Centroid coordinates.
      */
     static calculatePolygonCentroid(vertices, area) {
+        if(!area){
+            area = classicPhysics.calculatePolygonArea(vertices)
+        }
         let cx = 0, cy = 0;
         for (let i = 0; i < vertices.length; i++) {
             const current = vertices[i];
@@ -1863,8 +1880,11 @@ export class classicPhysics {
      * @param {number} mass - Total mass of the polygon.
      * @returns {number} Moment of inertia.
      */
-    static calculatePolygonInertia(vertices, centroid, mass) {
+    static calculatePolygonInertia(vertices, mass, centroid) {
         let inertia = 0;
+        if(!centroid){
+            centroid = classicPhysics.calculatePolygonCentroid(vertices, classicPhysics.calculatePolygonArea(vertices))
+        }
         for (let i = 0; i < vertices.length; i++) {
             const current = vertices[i];
             const next = vertices[(i + 1) % vertices.length];
@@ -1916,19 +1936,10 @@ export class classicPhysics {
         return newVerticies
     }
 
-    static findVerticiesArea(verticies) {
-        let area = 0;
-        for (let i = 0; i < verticies.length - 1; ++i) {
-            let va = verticies[i]
-            let vb = verticies[(i + 1) & verticies.length]
-
-            let width = vb.x - va.x;
-            let height = (vb.y - va.y) / 2;
-
-            area += width * height;
-        }
-        return Math.abs(area)
+    static parseWorldVerticies(verticies){
+        return classicPhysics.centerVerticies(verticies)
     }
+
 
     createCircleBody(position, radius, restitution, density, isStatic) {
         let area = Math.PI * radius * radius;
@@ -1992,7 +2003,7 @@ export class classicPhysics {
     createPolygonBody(position, verticies, scaleX, scaleY, restitution, density, isStatic) {
         let verticiesCopy = verticies
         let scaledVerticies = classicPhysics.scalaeVerticies(verticiesCopy, scaleX, scaleY)
-        let area = Math.abs(classicPhysics.findVerticiesArea(scaledVerticies))
+        let area = Math.abs(classicPhysics.calculatePolygonArea(scaledVerticies))
 
         if (this.safeMode) {
             if (area < classicPhysicsWorld.minBodySize) {
@@ -2013,7 +2024,7 @@ export class classicPhysics {
 
         restitution = clip(restitution, 0, 1);
         let mass = area * density;
-        let inertia = classicPhysics.calculateInertia(verticies, mass)
+        let inertia = classicPhysics.calculatePolygonInertia(verticies, mass)
 
 
         let body = new this.rigidBody(position, mass, inertia, area, density, restitution, isStatic, 0, scaleX, scaleY, scaledVerticies, classicPhysicsWorld.shapeType.polygon)
@@ -2040,7 +2051,7 @@ export class classicAABB {
         return {
             width: this.max.x - this.min.x,
             height: this.max.y - this.min.y,
-            center: new vec2(
+            center: new vec2D(
                 this.min.x + (this.max.x - this.min.x) * 0.5,
                 this.min.y + (this.max.y - this.min.y) * 0.5
             ),

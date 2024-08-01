@@ -16,8 +16,9 @@ function cloneObject(object) {
                 newCopy[param] = cloneObject(value)
             } else {
                 /// if it is an array, recurively clone
-                for (let item of value) {
-                    newCopy[param][item] = cloneObject(value[item])
+                newCopy[param] = new Array()
+                for (let i = 0; i < value.length; ++i) {
+                    newCopy[param][i] = cloneObject(value[i])
                 }
             }
         } else {
@@ -29,25 +30,40 @@ function cloneObject(object) {
     return newCopy
 }
 
-function cloneObjectPreserveReference(object, objectToCopy) {
+function cloneObjectPreserveDestination(object, objectToCopy) {
     for (let param in objectToCopy) {
         let value = objectToCopy[param]
         if (typeof value == "object") {
             if (!object[param]) {
-                console.log(getConstructorName(value))
-                object[param] = {}
-                // cloneObjectPreserveReference(object[param], value)
-                console.log(object[param] == value)
+                // console.log(value)
+
+                if (!value) {
+                    object[param] = value
+                }
+                    const valueType = getConstructorName(value)
+                    if (valueType == "Array")
+                        object[param] = []
+                    else  (valueType == "Object")
+                        object[param] = {}
+                    // else
+                        // console.log("Couldnt clone: ", getConstructorName(value), "\n", value, "\n\n not an object or array")
+
+                    cloneObjectPreserveDestination(object[param], value)
+                // console.log(object[param] == value)
             } else {
+                if(!value){
+                    object[param] = value
+                    continue;
+                }
                 /// if the value (typeof object) is not an array but a pure object type
                 if (!(typeof value.__proto__.length == "number")) {
-                    cloneObjectPreserveReference(object[param], value)
+                    cloneObjectPreserveDestination(object[param], value)
                 } else {
                     // console.log(value)
                     object[param] = new Array()
                     for (let i = 0; i < value.length; ++i) {
                         object[param][i] = {}
-                        cloneObjectPreserveReference(object[param][i], value[i])
+                        cloneObjectPreserveDestination(object[param][i], value[i])
                     }
                 }
             }
@@ -55,7 +71,7 @@ function cloneObjectPreserveReference(object, objectToCopy) {
             object[param] = value
         }
     }
-    object.__proto__ = objectToCopy.__proto__
+    // object.__proto__ = objectToCopy.__proto__
 }
 
 
@@ -64,6 +80,6 @@ window.cloneObject = cloneObject
 
 export {
     cloneObject,
-    cloneObjectPreserveReference,
+    cloneObjectPreserveDestination,
 
 }

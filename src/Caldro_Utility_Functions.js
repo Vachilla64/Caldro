@@ -1,6 +1,6 @@
 "use strict";
 import { ceilToNearestMutliple, floorToNearestMutliple } from "./Caldro_Math";
-import { vec2 } from "./Caldro_Vectors_and_Matrices";
+import { vec2D } from "./Caldro_Vectors_and_Matrices";
 
 // Utility_Functions
 
@@ -177,7 +177,7 @@ function counter(min = 0, max = 10, elapsedTime = Caldro.time.elapsedTime) {
 }
 
 export function snapCoordinatesToGrid(x, y, gridSize) {
-	let snappedCoordinates = new vec2(x, y)
+	let snappedCoordinates = new vec2D(x, y)
 	snappedCoordinates.x = floorToNearestMutliple(x, gridSize)
 	snappedCoordinates.y = floorToNearestMutliple(y, gridSize)
 
@@ -300,9 +300,9 @@ ts.chainTasks([
 
 export function timeTask(task = NULLFUNCTION) {
 	if (typeof task != "function") return false;
-	let startTime = performance.now();
+	let startTime = performance.now() / 1000;
 	task();
-	return performance.now() - startTime;
+	return (performance.now() / 1000) - startTime;
 }
 
 

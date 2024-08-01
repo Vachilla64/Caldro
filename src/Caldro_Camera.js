@@ -3,7 +3,7 @@ import { classicAABB } from "./Caldro_ClassicPhysics.js";
 import { Point2D } from "./Caldro_Physics.js";
 import Caldro from "./Caldro.js";
 import { clip, cosine, degToRad, sine } from "./Caldro_Math.js";
-import { Lvector2D, vec2, vecMath } from "./Caldro_Vectors_and_Matrices.js";
+import { Lvector2D, vec2D, vecMath } from "./Caldro_Vectors_and_Matrices.js";
 import { NULLFUNCTION, ORIGIN } from "./Caldro_Utility_Constants.js";
 import { angleBetweenPoints, castRay } from "./Caldro_Physics_Utilities.js";
 import { dist2D, doTask, generateRandomId, getConstructorName, getRandomPointIn, place } from "./Caldro_Utility_Functions.js";
@@ -25,7 +25,7 @@ export class Camera {
 			width: this.width,
 			height: this.height,
 		}
-		this.zoom = new vec2(1, 1); // a vector specifiying the x and y zoom levels
+		this.zoom = new vec2D(1, 1); // a vector specifiying the x and y zoom levels
 		this.canvas = Caldro.renderer.canvas // storing the cnavas for reference 
 		this.context = Caldro.renderer.canvas.getContext('2d') // storing the context for reference
 		this.capturing = false; // will be true inbeween start() and end() calls of the camear
@@ -45,8 +45,8 @@ export class Camera {
 		this.aabb.max.y = this.y + this.height * 0.5
 		return this.aabb
 	}
-	clipZoom(zoom, min, max){
-		if(!zoom) zoom = this.zoom.x
+	clipZoom(zoom, min, max) {
+		if (!zoom) zoom = this.zoom.x
 		this.zoom.x = clip(zoom, min, max)
 		this.zoom.y = clip(zoom, min, max)
 	}
@@ -56,14 +56,18 @@ export class Camera {
 		this.width = this.canvas.width * (1 / this.zoom.x);
 		this.height = this.canvas.height * (1 / this.zoom.y);
 	}
-	addZoom(zoom) {
+	addZoom(zoom, targetPoint) {
 		zoom *= 0.1
-        // camera.zoom += camera.zoomSpeed * camera.zoom * Caldro.time.deltatime;
+		// camera.zoom += camera.zoomSpeed * camera.zoom * Caldro.time.deltatime;
 		this.zoom.x += zoom * this.zoom.x
 		this.zoom.y += zoom * this.zoom.y
 		// this.zoom
 		this.width = this.canvas.width * (1 / this.zoom.x);
 		this.height = this.canvas.height * (1 / this.zoom.y);
+		if (targetPoint) {
+			let difference = vecMath.subtract(this, targetPoint)
+			vecMath.subtract(this, vecMath.divideByVector(difference, this.zoom), true)
+		}
 	}
 
 	getBounds() {
@@ -113,11 +117,11 @@ export class Camera {
 		otherCamera.start();
 		otherCamera.end();
 
-		let sizeMultiplier = 1/this.zoom.x
+		let sizeMultiplier = 1 / this.zoom.x
 		alpha(0.4)
-		drawRay(otherCamera, 100*sizeMultiplier, otherCamera.angle, "red", 10*sizeMultiplier)
-		triangle(otherCamera.x, otherCamera.y, 100*sizeMultiplier, "lime", otherCamera.angle)
-		stTriangle(otherCamera.x, otherCamera.y, 100*sizeMultiplier, "white", otherCamera.angle, 10*sizeMultiplier)
+		drawRay(otherCamera, 100 * sizeMultiplier, otherCamera.angle, "red", 10 * sizeMultiplier)
+		triangle(otherCamera.x, otherCamera.y, 100 * sizeMultiplier, "lime", otherCamera.angle)
+		stTriangle(otherCamera.x, otherCamera.y, 100 * sizeMultiplier, "white", otherCamera.angle, 10 * sizeMultiplier)
 		alpha(0.2)
 		Rect(otherCamera.x, otherCamera.y, otherCamera.width, otherCamera.height, "white", otherCamera.angle)
 		let borderWidth = 40 * sizeMultiplier
@@ -483,14 +487,14 @@ export class Cimera {
 		let offsetY = this.actualOffsetY + this.shakeOffsetY;
 
 		// distance from 0.0 to the top left of the canvas (in screen space)
-		let topLeftToCenterLength = dist2D(ORIGIN, new vec2(this.width / 2, this.height / 2));
-		// let topLeftToCenterLength = vecMath.distance(ORIGIN, new vec2(this.width / 2, this.height / 2));
+		let topLeftToCenterLength = dist2D(ORIGIN, new vec2D(this.width / 2, this.height / 2));
+		// let topLeftToCenterLength = vecMath.distance(ORIGIN, new vec2D(this.width / 2, this.height / 2));
 
 		this.camtranslationX = -((this.x + offsetX) - ((this.canvas.width / 2) * 1 / this.adjustedZoom))
 		this.camtranslationY = -((this.y + offsetY) - ((this.canvas.height / 2) * 1 / this.adjustedZoom))
 
 		// displacedmt of camear from 0.0 to half with and height of the canvas, taking into account tzoom level (in screen space)
-		let translation = new vec2(this.camtranslationX, this.camtranslationY);
+		let translation = new vec2D(this.camtranslationX, this.camtranslationY);
 
 		// angle from a vector straight up to a vector top left of the canvas
 		let offsetAngle = angleBetweenPoints(ORIGIN, translation);
@@ -571,7 +575,7 @@ export function setupDevcamControls(currentCamera, devCamera, otherCamera, keySt
 	keyStateHandler.addKey(0, "u", NULLFUNCTION, function () {
 		devCamera.addZoom(zoomSpeed)
 	})
-	
+
 	keyStateHandler.addKey(0, "o", NULLFUNCTION, function () {
 		devCamera.addZoom(-zoomSpeed)
 	})

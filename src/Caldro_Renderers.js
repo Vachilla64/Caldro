@@ -2,7 +2,7 @@
 import { clip, ceilToNearestMutliple, scaleTo, floorToNearestMutliple } from "./Caldro_Math.js";
 import { Rect, txt, font, alpha, rect, line, circle } from "./Caldro_Rendering.js";
 import { dist2D, doTask, place, snapCoordinatesToGrid } from "./Caldro_Utility_Functions.js";
-import { vec2 } from "./Caldro_Vectors_and_Matrices.js";
+import { vec2D } from "./Caldro_Vectors_and_Matrices.js";
 
 export function cordShow(who, fill = 'green', w = 300, h = 2, showCordValue = false, camera = null) {
   if (who != undefined) {
@@ -62,8 +62,7 @@ export function drawCoordinateGraph(camera, gridSize = 10, color = "white", subd
   let subdivisionCounter = 0
 
   if (dynamic) {
-    gridSize = width / gridSize
-    window.gridSize = gridSize
+    gridSize = width / (gridSize)
     gridSize = ceilToNearestMutliple(gridSize, 10)
     gridSize = clip(gridSize, 1, Infinity)
   }
@@ -138,7 +137,7 @@ export function drawCoordinateGraph(camera, gridSize = 10, color = "white", subd
     for (let y = startY; y <= endY; y += gridSize) {
 
       if (mouse && showCCameraPointerCoordinates) {
-        // let distanceFromPointer = dist2D(new vec2(x, y), camera.getPointer())
+        // let distanceFromPointer = dist2D(new vec2D(x, y), camera.getPointer())
         // if (distanceFromPointer < gridSize) {
         if (x == mouse.x && y == mouse.y) {
           ctx.save()

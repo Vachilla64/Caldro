@@ -55,7 +55,7 @@ export class Lvector2D {
     }
 }
 
-export function vec2(x, y) {
+export function vec2D(x, y) {
     return {
         x: x,
         y: y,
@@ -113,10 +113,15 @@ export class vector2D {
 
 
 export const vecMath = {
-    normalize(vector, sourceVector = originVector) {
+    normalize(vector, preserveReferences = false, sourceVector = originVector) {
         let mag = this.distance(vector, sourceVector);
         mag = mag == 0 ? 1 : mag;
-        return new Lvector2D(vector.x / mag, vector.y / mag)
+        if (!preserveReferences) {
+            return new Lvector2D(vector.x / mag, vector.y / mag)
+        } else {
+            vector.x /= mag;
+            vector.y /= mag;
+        }
     },
     lengthSquared(vector) {
         return (vector.x ** 2 + vector.y ** 2)
@@ -134,11 +139,22 @@ export const vecMath = {
         let dy = vector1.y - vector2.y
         return Math.sqrt((dx ** 2) + (dy ** 2))
     },
-    normal(vector) {
-        return new Lvector2D(-vector.y, vector.x);
+    normal(vector, preserveReferences = false) {
+        if (!preserveReferences)
+            return new Lvector2D(-vector.y, vector.x);
+        else {
+            let initialX = vector.x
+            vector.x = -vector.y
+            vector.y = initialX
+        }
     },
-    invert(vector) {
-        return new Lvector2D(-vector.x, -vector.y)
+    invert(vector, preserveReferences = false) {
+        if (!preserveReferences)
+            return new Lvector2D(-vector.x, -vector.y)
+        else {
+            vector.x *= -1
+            vector.y *= -1
+        }
     },
     equal(vector1, vector2, marginOfError = 0) {
         if (!marginOfError) {
@@ -147,20 +163,49 @@ export const vecMath = {
         return vecMath.distanceSquared(vector1, vector2) < marginOfError ** 2;
     },
 
-    add(vector1, vector2) {
-        return new Lvector2D(vector1.x + vector2.x, vector1.y + vector2.y)
-    },
-    subtract(vector1, vector2) {
-        return new Lvector2D(vector1.x - vector2.x, vector1.y - vector2.y)
-    },
-    multiply(vector, number) {
-        return new Lvector2D(vector.x * number, vector.y * number)
-    },
-    divide(vector, number) {
-        if (number) {
-            return new Lvector2D(vector.x / number, vector.y / number)
+    add(vector1, vector2, preserveReferences = false) {
+        if (!preserveReferences)
+            return new Lvector2D(vector1.x + vector2.x, vector1.y + vector2.y)
+        else {
+            vector1.x += vector2.x;
+            vector1.y += vector2.y;
         }
-        console.error("vector is being divided by an unsusual variable: " + number)
+    },
+    subtract(vector1, vector2, preserveReferences = false) {
+        if (!preserveReferences)
+            return new Lvector2D(vector1.x - vector2.x, vector1.y - vector2.y)
+        else {
+            vector1.x -= vector2.x;
+            vector1.y -= vector2.y;
+        }
+    },
+    multiply(vector, number, preserveReferences = false) {
+        if (!preserveReferences)
+            return new Lvector2D(vector.x * number, vector.y * number)
+        else {
+            vector.x *= number
+            vector.y *= number
+        }
+    },
+    divide(vector, number, preserveReferences = false) {
+        if (number) {
+            if (!preserveReferences) {
+                return new Lvector2D(vector.x / number, vector.y / number)
+            } else {
+                vector.x /= number
+                vector.y /= number
+            }
+        } else {
+            console.error("vector is being divided by an unsusual variable: " + number)
+        }
+    },
+    divideByVector(vector1, vector2, preserveReferences = false) {
+        if (!preserveReferences) {
+            return new Lvector2D(vector1.x / vector2.x, vector1.y / vector2.y)
+        } else {
+            vector1.x /= vector2.x;
+            vector1.y /= vector2.y
+        }
     },
 
     transform(vector, transform) {
@@ -173,8 +218,17 @@ export const vecMath = {
     copy(vector) {
         return new Lvector2D(vector.x, vector.y);
     },
-    map(vector, f) {
-        return new Lvector2D(f(vector.x), f(vector.y));
+    clone(vector1, vector2){
+        vector1.x = vector2.x
+        vector1.y = vector2.y
+    },
+    map(vector, operation) {
+        if (!preserveReferences)
+            return new Lvector2D(operation(vector.x), operation(vector.y));
+        else {
+            vector.x = operation(vector.x);
+            vector.y = operation(vector.y);
+        }
     },
     dot(vector1, vector2) {
         return vector1.x * vector2.x + vector1.y * vector2.y;

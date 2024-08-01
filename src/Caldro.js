@@ -10,19 +10,20 @@ import {
 	adjustCanvas,
 	cc,
 } from "./Caldro_Rendering.js";
-import { place, randomNumber } from "./Caldro_Utility_Functions.js";
+import { place, randomNumber, timeTask } from "./Caldro_Utility_Functions.js";
 import { arraySum } from "./Caldro_Utility_Functions.js";
 import { init_controls } from "./Caldro_Controls.js";
 import { getConstructorName } from "./Caldro_Utility_Functions.js";
 import { spriteSheetManager } from "./Caldro_Image.js";
 import { canvasImageManager } from "./Caldro_Image_Canvas_Manager.js";
 import { imageHandler } from "./Caldro_Image.js";
+import { DEBUGGER } from "./debug/Caldro_Debug.js";
 /* var CaldroCam = new camera();
 var CaldroPs = new particleSystem();
 var CaldroKeys = new keyStateHandler(); */
 // let c = getCanvas();
 
-export const CaldroSSM = new spriteSheetManager ();
+export const CaldroSSM = new spriteSheetManager();
 export const CaldroCIM = new canvasImageManager();
 export const CaldroIH = new imageHandler();
 export const CaldroKeys = new keyStateHandler();
@@ -139,7 +140,7 @@ var Caldro = {
 		// currentKeyStateHandler: CaldroKeys,
 		// currentParticleSystem: CaldroPs,
 		// currentCamera: CaldroCam,
-		currentKeyStateHandler: CaldroKeys,
+		// currentKeyStateHandler: CaldroKeys,
 		// currentParticleSystem: CaldroPs,
 	},
 
@@ -160,7 +161,7 @@ var Caldro = {
 				context: this.context
 			}
 		},
-		
+
 		_pixelatorCanvas: document.createElement("canvas"),
 		glow: true,
 		alpha: true,
@@ -245,7 +246,7 @@ var Caldro = {
 			if (foundOne) return pointers
 			else return foundOne;
 		},
-		getPointer(ID = 0){
+		getPointer(ID = 0) {
 			return this.pointers[ID]
 		},
 		addPointer(x, y, id = generateRandomId()) {
@@ -330,7 +331,7 @@ var Caldro = {
 						/// if it doesn't, create a new poknter
 						pointer = new Pointer(event.pageX, event.pageY, ID)
 					}
-					
+
 					this.pointerAdjustment(pointer)
 					this.pointers[ID] = pointer
 				} else if (type == "end") {
@@ -354,7 +355,7 @@ var Caldro = {
 			}
 		},
 		pointerAdjustment() { },
-		clearAllPointers(){
+		clearAllPointers() {
 			console.log(this.pointers)
 			this.pointers.length = 0
 			console.log(this.pointers)
@@ -468,7 +469,7 @@ var Caldro = {
 		UPDATE() { },
 		FIXEDUPDATE() { },
 		RENDER() { },
-		ONSTART(){},
+		ONSTART() { },
 		START() {
 			this.running = true;
 		},
@@ -478,7 +479,7 @@ var Caldro = {
 	}
 }
 
-window.addEventListener("error", ()=>{
+window.addEventListener("error", () => {
 	Caldro.engine.KILL();
 })
 
@@ -486,13 +487,26 @@ window.addEventListener("error", ()=>{
 
 const INFINITE_UPDATE_LOOP = function () {
 	window.requestAnimationFrame(INFINITE_UPDATE_LOOP);
+
+	/// update Caldro time
 	if (Caldro.time.update()) {
-		if(Caldro.engine.running){
-			Caldro.engine.UPDATE();
+		if (Caldro.engine.running) {
+			let updateTime = timeTask(() => {
+				Caldro.engine.UPDATE();
+			})
+			let renderTime = timeTask(() => {
+				Caldro.engine.RENDER();
+			})
+
+			/// heave task simulation
+			// for(let i = 0; i < Math.round(Caldro.time.elapsedTime)*100000; ++i){
+			// 	Math.sin(Math.cos(Math.sqrt(Math.random())))
+			// }
+
+			DEBUGGER.UPDATE(updateTime, renderTime)
 			// c.getContext('2d').save();
 			/// flipping coordinate system to match graph
 			// c.getContext('2d').scale(1, -1);
-			Caldro.engine.RENDER();
 			// c.getContext('2d').restore();
 		}
 		try {
@@ -518,10 +532,10 @@ try {
 	onCaldroLoad();
 } catch { }
 
-window.addEventListener("error", ()=>{
-	Caldro.engine.KILL();   
+window.addEventListener("error", () => {
+	Caldro.engine.KILL();
 	Caldro.screen.setCursorType(CURSOR_TYPES.DEFAULT)
-    console.warn("Killed the Engine to prevent infinite error messages")
+	console.warn("Killed the Engine to prevent infinite error messages")
 })
 
 export default Caldro

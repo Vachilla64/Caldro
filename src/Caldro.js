@@ -457,6 +457,7 @@ var Caldro = {
 	init() {
 		this.renderer._pixelatorCanvasContext = this.renderer._pixelatorCanvas.getContext("2d")
 		this.screen.addPointer(0, 0, 0)
+		// this.time.setSafetyDeltatimeCapAtFPS(1)
 		try {
 			init_controls();
 			this.events.initializedImputControls = true

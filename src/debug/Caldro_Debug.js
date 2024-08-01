@@ -26,6 +26,9 @@ export const DEBUGGER = {
         browserDelay: 0,
         _lastUpdateTime: 0,
     },
+    memory: {
+
+    },
     UPDATE(updateTime, renderTime) {
         let now = performance.now() / 1000;
 
@@ -42,6 +45,16 @@ export const DEBUGGER = {
     },
     getFPS(){
         return  1 / this.time.updateTime + this.time.renderTime
+    },
+    getMemoryUsage(){
+        if (performance.memory) {
+            const usedHeapSize = performance.memory.usedJSHeapSize;
+            const heapSizeLimit = performance.memory.jsHeapSizeLimit;
+            const memoryUsagePercentage = (usedHeapSize / heapSizeLimit) * 100;
+            return parseFloat(memoryUsagePercentage.toFixed(2))
+        } else {
+            console.log("The performance.memory API is not supported in this browser.");
+        }
     }
 }
 window.debug = DEBUGGER
@@ -74,6 +87,10 @@ function RENDER() {
     ctx.fillRect(canvas.width-resolution, HEIGHT-updateTimeHeight-renderTimeHeight, resolution, renderTimeHeight)
     ctx.fillStyle = "orange"
     ctx.fillRect(canvas.width-resolution, HEIGHT-browserDelayHeight-updateTimeHeight-renderTimeHeight, resolution, browserDelayHeight)
+    
+    /// draw memory
+    ctx.fillStyle = "red"
+    ctx.fillRect(canvas.width-resolution, getYCoordsFromTimeStamp(scaleTo(DEBUGGER.getMemoryUsage(), 0, 5, MIN_FRAMETIME, MAX_FRAMETIME)), resolution, resolution)
 
     /// move the drawwing currently on the canvas to one resolution worht of pixeld to the left
     smearCanvas()

@@ -74,12 +74,42 @@ function cloneObjectPreserveDestination(object, objectToCopy) {
     // object.__proto__ = objectToCopy.__proto__
 }
 
+function roughSizeOfObject(object) {
+    const objectList = [];
+    const stack = [object];
+    const visitedObjects = new Set();
+    let bytes = 0;
 
-window.cloneObject = cloneObject
+    while (stack.length) {
+        const value = stack.pop();
 
+        if (typeof value === 'boolean') {
+            bytes += 4;
+        } else if (typeof value === 'string') {
+            bytes += value.length * 2;
+        } else if (typeof value === 'number') {
+            bytes += 8;
+        } else if (typeof value === 'object' && value !== null && !visitedObjects.has(value)) {
+            visitedObjects.add(value);
+            objectList.push(value);
+
+            for (const i in value) {
+                if (value.hasOwnProperty(i)) {
+                    stack.push(value[i]);
+                }
+            }
+        } else if (typeof value === 'function') {
+            // Estimating size of function: this is arbitrary and not precise.
+            bytes += 50;
+        }
+    }
+    return bytes;
+}
+
+window.roughSizeOfObject = roughSizeOfObject
 
 export {
     cloneObject,
     cloneObjectPreserveDestination,
-
+    roughSizeOfObject
 }

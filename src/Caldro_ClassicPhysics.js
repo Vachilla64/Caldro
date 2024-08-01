@@ -1549,7 +1549,14 @@ export class classicPhysics {
                     } else {
                         console.error("unkown shapeType")
                     }
-                    this.aabb = new classicAABB(minX, minY, maxX, maxY)
+                    if(!this.aabb) {
+                        this.aabb = new classicAABB(minX, minY, maxX, maxY)
+                    } else {
+                        this.aabb.min.x = minX
+                        this.aabb.min.y = minY
+                        this.aabb.max.x = maxX
+                        this.aabb.max.y = maxY
+                    }
                     this.aabbUpdateRequired = false;
                 }
                 return this.aabb;
@@ -1572,7 +1579,7 @@ export class classicPhysics {
 
                 let acceleration = vecMath.divide(this.force, this.mass)
                 if (this.gravity) {
-                    acceleration = vecMath.add(acceleration, vecMath.multiply(gravity, deltatime))
+                    vecMath.add(acceleration, vecMath.multiply(gravity, deltatime), true)
                 }
 
                 vecMath.add(this.linearVelocity, acceleration, true)
@@ -1585,7 +1592,8 @@ export class classicPhysics {
                 vecMath.clone(this.oldPosition, this.position)
 
 
-                let newPosition = (vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime)))
+                /// Euler integration
+                let newPosition = vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime))
 
                 //// update positions if they are not locked
                 if (!this.lockedX)
@@ -1600,7 +1608,7 @@ export class classicPhysics {
 
 
                 /// reset the forces to be aded nex frame
-                this.force = new Lvector2D(0, 0)
+                this.force.x = this.force.y = 0
 
                 /// if motion occured, update verticies
                 this.transformUpdateRequired = true;

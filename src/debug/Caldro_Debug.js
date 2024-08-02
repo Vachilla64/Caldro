@@ -90,7 +90,7 @@ function RENDER() {
     
     /// draw memory
     ctx.fillStyle = "red"
-    ctx.fillRect(canvas.width-resolution, getYCoordsFromTimeStamp(scaleTo(DEBUGGER.getMemoryUsage(), 0, 5, MIN_FRAMETIME, MAX_FRAMETIME)), resolution, resolution)
+    ctx.fillRect(canvas.width-resolution, getYCoordsFromTimeStamp(scaleTo(DEBUGGER.getMemoryUsage(), 0, 2, MIN_FRAMETIME, MAX_FRAMETIME)), resolution, resolution)
 
     /// move the drawwing currently on the canvas to one resolution worht of pixeld to the left
     smearCanvas()

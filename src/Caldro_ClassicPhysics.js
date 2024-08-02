@@ -5,8 +5,9 @@ import { INFINITY } from "./Caldro_Utility_Constants.js";
 import { dist2D, doTask, generateRandomId } from "./Caldro_Utility_Functions.js";
 import { vecMath } from "./Caldro_Vectors_and_Matrices.js";
 import Caldro from "./Caldro.js";
-import { alpha, drawPolypon, drawLine, circle, line, rect, strect, txt, font, drawRay, stCircle, Rect, stDrawPolypon } from "./Caldro_Rendering.js";
+import { alpha, drawPolypon, drawLine, circle, line, rect, strect, txt, font, drawRay, stCircle, Rect, stDrawPolypon, cc, fillColor } from "./Caldro_Rendering.js";
 import { angleBetweenPoints } from "./Caldro_Physics_Utilities.js";
+import { keyboard } from "./Caldro_Controls.js";
 
 
 export class classicPhysicsWorld {
@@ -206,7 +207,7 @@ export class classicPhysicsWorld {
         return found
     }
     // is caps insensitive
-    removeBodiesWithTag(tag, strict) {
+    removeBodiesWithTag(tag, strict = false) {
         let found = false
         let physicsWorld = this
         this.bodies = this.bodies.filter(function (body) {
@@ -464,7 +465,7 @@ export class classicPhysicsWorld {
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
             body.inCollision = false
-            body.step(deltatime, this.gravity, substep == (iterations-1))
+            body.step(deltatime, this.gravity, substep == (iterations - 1))
             // body.applyFriction(body.staticFriction, deltatime)
         }
     }
@@ -762,10 +763,18 @@ export class classicPhysicsWorld {
     }
 
     renderBodies(renderAABB = false, camera) {
+        let radius = 4
+        if (camera)
+            radius *= (1 / camera.zoom.x)
+
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
             classicPhysicsWorld.renderBody(body, renderAABB, camera)
             // txt(i, body.position.x, body.position.y, font(5), 'white')
+        }
+
+        for (let point of this.contactPointsList) {
+            circle(point.x, point.y, radius, "lime")
         }
     }
 
@@ -848,7 +857,7 @@ export class classicPhysicsWorld {
                 drawRay(body.position, dist2D(body.position, vertex1), body.angle + vertex1.angle, lineColour, lineWidth)
                 // line(body.positi/on.x, body.position.y, vertex1.x, vertex1.y, lineColour, lineWidth)
             }
-            // line(body.position, vecMath.add(body.position, body.linearVelocity))
+            line(body.position.x, body.position.y, body.position.x + body.linearVelocity.x, body.position.y + body.linearVelocity.y, "lime", lineWidth*3)
         } else {
             body.render(body)
         }
@@ -1471,6 +1480,7 @@ export class classicPhysics {
                 this.scaleX = scaleX;
                 this.scaleY = scaleY;
                 this.aabb;
+                this.wait = false
 
 
                 if (!(this.shapeType == classicPhysicsWorld.shapeType.circle)) {
@@ -1549,7 +1559,7 @@ export class classicPhysics {
                     } else {
                         console.error("unkown shapeType")
                     }
-                    if(!this.aabb) {
+                    if (!this.aabb) {
                         this.aabb = new classicAABB(minX, minY, maxX, maxY)
                     } else {
                         this.aabb.min.x = minX
@@ -1563,6 +1573,9 @@ export class classicPhysics {
             }
 
             step(deltatime, gravity, shouldCallCalback) {
+                if(this.wait){
+                    return
+                }
                 if (this.isStatic || this.isTrigger) {
                     if (shouldCallCalback) this.callback();
                     return;
@@ -1864,7 +1877,7 @@ export class classicPhysics {
      * @returns {{x: number, y: number}} Centroid coordinates.
      */
     static calculatePolygonCentroid(vertices, area) {
-        if(!area){
+        if (!area) {
             area = classicPhysics.calculatePolygonArea(vertices)
         }
         let cx = 0, cy = 0;
@@ -1890,7 +1903,7 @@ export class classicPhysics {
      */
     static calculatePolygonInertia(vertices, mass, centroid) {
         let inertia = 0;
-        if(!centroid){
+        if (!centroid) {
             centroid = classicPhysics.calculatePolygonCentroid(vertices, classicPhysics.calculatePolygonArea(vertices))
         }
         for (let i = 0; i < vertices.length; i++) {
@@ -1944,7 +1957,7 @@ export class classicPhysics {
         return newVerticies
     }
 
-    static parseWorldVerticies(verticies){
+    static parseWorldVerticies(verticies) {
         return classicPhysics.centerVerticies(verticies)
     }
 

@@ -1,4 +1,4 @@
-import { checkNaN, getConstructorName } from "./Caldro_Utility_Functions"
+import { checkNaN, checkUndefined, getConstructorName } from "./Caldro_Utility_Functions"
 
 function cloneObject(object) {
     // new copy of the object
@@ -33,26 +33,29 @@ function cloneObject(object) {
 function cloneObjectPreserveDestination(object, objectToCopy) {
     for (let param in objectToCopy) {
         let value = objectToCopy[param]
+
+        /// if this object is a nested object to be cloned (array or object
         if (typeof value == "object") {
+
+            /// if the object doe snot have this parameter initially
             if (!object[param]) {
-                // console.log(value)
+                const valueType = getConstructorName(value)
+                if (valueType == "Array")
+                    object[param] = []
+                else (valueType == "Object")
+                object[param] = {}
+                // else
+                // console.log("Couldnt clone: ", getConstructorName(value), "\n", value, "\n\n not an object or array")
 
-                if (!value) {
-                    object[param] = value
-                }
-                    const valueType = getConstructorName(value)
-                    if (valueType == "Array")
-                        object[param] = []
-                    else  (valueType == "Object")
-                        object[param] = {}
-                    // else
-                        // console.log("Couldnt clone: ", getConstructorName(value), "\n", value, "\n\n not an object or array")
+                cloneObjectPreserveDestination(object[param], value)
 
-                    cloneObjectPreserveDestination(object[param], value)
-                // console.log(object[param] == value)
+            /// if this clone already has this specific parameter
             } else {
-                if(!value){
-                    object[param] = value
+
+                /// if the value of the parameter is null or undefinded then ignore it?
+                if (checkUndefined(value)) {
+                    // console.log(param, value)
+                    // object[param] = value
                     continue;
                 }
                 /// if the value (typeof object) is not an array but a pure object type
@@ -67,7 +70,10 @@ function cloneObjectPreserveDestination(object, objectToCopy) {
                     }
                 }
             }
+
         } else {
+             /// this is a primitve so just copy over like normal
+            // console.log(param, value)
             object[param] = value
         }
     }

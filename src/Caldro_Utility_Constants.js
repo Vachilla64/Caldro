@@ -1,5 +1,5 @@
 // Utility_Constants
-import { Point2D } from "./Caldro_Physics.js";
+import { vec2D } from "./Caldro_Vectors_and_Matrices.js";
 
 export const CALDGRAY = "rgba(20, 20, 20, 1)"
 export const CALDGREY = CALDGRAY;
@@ -7,7 +7,7 @@ export const CALDRED = "rgba(80, 10, 20, 1)"
 export const CALDBLUE = "rgba(20, 20, 40, 1)"
 export const CALDGREEN = "rgba(20, 60, 20, 1)"
 
-export const ORIGIN = new Point2D(0, 0);
+export const ORIGIN = new vec2D(0, 0);
 export const INFINITY = Infinity;
 export const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
 export const NUMBERS = "0123456789".split('')

@@ -1,7 +1,7 @@
 // Rendering
 import { NULLFUNCTION } from "./Caldro_Utility_Constants.js";
 import Caldro from "./Caldro.js";
-import { degToRad } from "./Caldro_Math.js";
+import { degToRad, PI_2 } from "./Caldro_Math.js";
 import { c } from "./Caldro_Canvas.js"
 import { randomNumber } from "./Caldro_Utility_Functions.js";
 import { CALDGRAY } from "./Caldro_Utility_Constants.js";
@@ -183,7 +183,7 @@ export function stAarc(x, y, r, theta, angle, fill, lineWidth = 5) {
 
 export function circle(x, y, r, fill) {
 	Caldro.rendering.context.beginPath();
-	Caldro.rendering.context.arc(x, y, r, 0, 2 * Math.PI);
+	Caldro.rendering.context.arc(x, y, r, 0, PI_2);
 	Caldro.rendering.context.closePath();
 	fillColor(fill)
 	Caldro.rendering.context.fill();
@@ -191,7 +191,7 @@ export function circle(x, y, r, fill) {
 
 export function stCircle(x, y, r, fill, lw) {
 	Caldro.rendering.context.beginPath();
-	Caldro.rendering.context.arc(x, y, r, 0, 2 * Math.PI);
+	Caldro.rendering.context.arc(x, y, r, 0, PI_2);
 	Caldro.rendering.context.closePath();
 	Caldro.rendering.context.lineWidth = lw;
 	strokeColor(fill);
@@ -200,7 +200,7 @@ export function stCircle(x, y, r, fill, lw) {
 
 export function clCircle(x, y, r) {
 	Caldro.rendering.context.beginPath();
-	Caldro.rendering.context.arc(x, y, r, 0, 2 * Math.PI);
+	Caldro.rendering.context.arc(x, y, r, 0, PI_2);
 	Caldro.rendering.context.closePath();
 	Caldro.rendering.context.clip();
 }

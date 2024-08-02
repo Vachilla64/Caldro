@@ -266,6 +266,10 @@ export function checkNaN(value = 0, setToIfNaN = true, logMessage = null) {
 	return false
 }
 
+export function checkUndefined(value){
+	return (value === undefined || value === null)
+}
+
 
 /*function taskManager(){
 	

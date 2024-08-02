@@ -2,6 +2,7 @@
 export const ROOT_1_2 = Math.sqrt(0.5)
 export const ROOT_2 = Math.sqrt(2)
 export const ROOT_3 = Math.sqrt(3)
+export const PI_2 = Math.PI*2;
 
 export function degToRad(degree) {
 	return degree * (Math.PI / 180);

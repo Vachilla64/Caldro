@@ -9,6 +9,7 @@ import {
 	txt,
 	adjustCanvas,
 	cc,
+	alpha,
 } from "./Caldro_Rendering.js";
 import { place, randomNumber, timeTask } from "./Caldro_Utility_Functions.js";
 import { arraySum } from "./Caldro_Utility_Functions.js";
@@ -467,10 +468,12 @@ var Caldro = {
 	},
 	engine: {
 		running: false,
+		paused: false,
 		UPDATE() { },
 		FIXEDUPDATE() { },
 		RENDER() { },
 		ONSTART() { },
+		PRELOOP() {},
 		START() {
 			this.running = true;
 		},
@@ -489,15 +492,28 @@ window.addEventListener("error", () => {
 const INFINITE_UPDATE_LOOP = function () {
 	window.requestAnimationFrame(INFINITE_UPDATE_LOOP);
 
+	/// update keybord tracker
+	CaldroKeys.updateKeys();
+	Caldro.engine.PRELOOP();
+	
 	/// update Caldro time
 	if (Caldro.time.update()) {
+		
 		if (Caldro.engine.running) {
+			
 			let updateTime = timeTask(() => {
-				Caldro.engine.UPDATE();
+				if (!Caldro.engine.paused){
+					Caldro.engine.UPDATE();
+				}
 			})
 			let renderTime = timeTask(() => {
 				Caldro.engine.RENDER();
 			})
+			if (Caldro.engine.paused) {
+				alpha(0.2)
+				rect(0, 0, c.width, c.height, "white")
+				alpha(1)
+			}
 
 			/// heave task simulation
 			// for(let i = 0; i < Math.round(Caldro.time.elapsedTime)*100000; ++i){

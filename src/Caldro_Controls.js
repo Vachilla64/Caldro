@@ -1,7 +1,7 @@
 // Controls
 import { generateRandomId } from "./Caldro_Utility_Functions.js";
 import { timer } from "./Caldro_SpecialObjects.js";
-import Caldro from "./Caldro.js";
+import Caldro, { CaldroKeys } from "./Caldro.js";
 import { c, getCanvas } from "./Caldro_Canvas.js";
 import { NULLFUNCTION } from "./Caldro_Utility_Constants.js";
 import { place } from "./Caldro_Utility_Functions.js";
@@ -223,6 +223,7 @@ export function init_mouse_controls(DOMElement = c) {
 				return;
 			}
 			event.preventDefault();
+			event.stopPropagation();
 			let pointer = Caldro.screen.updatePointers(event, "start")
 			// Caldro.info.currentCamera.updatePointer(pointer);
 			events.mouseIsDown = true
@@ -238,6 +239,7 @@ export function init_mouse_controls(DOMElement = c) {
 	DOMElement.addEventListener("mousemove", function (event) {
 		if (Caldro.events.handleMouseEvents) {
 			event.preventDefault();
+			event.stopPropagation();
 			let pointer = Caldro.screen.updatePointers(event, "move")
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			events.pointMoveEvent(pointer, "mouse");
@@ -247,6 +249,7 @@ export function init_mouse_controls(DOMElement = c) {
 	DOMElement.addEventListener("mouseup", function (e) {
 		if (Caldro.events.handleMouseEvents) {
 			event.preventDefault();
+			event.stopPropagation();
 			let pointer = Caldro.screen.updatePointers(e, "end")
 			// Caldro.info.currentCamera.updatePointer(pointer)
 			events.mouseIsDown = false
@@ -254,9 +257,10 @@ export function init_mouse_controls(DOMElement = c) {
 		}
 	})
 
+	/// TODO: Aint aorkin
 	/// stop mouse pointers form being pressed
 	DOMElement.addEventListener("blur", () => {
-		console.log("")
+		console.log("Poiteres cleard")
 		Caldro.screen.clearAllPointers()
 	})
 
@@ -291,6 +295,7 @@ export function init_keyboard_controls(DOMElement) {
 	/// stop keyboard keuys form being pressed
 	DOMElement.addEventListener("blur", () => {
 		keyboard.removeAllKeys()
+		CaldroKeys.deactivateAllKeyStates();
 	})
 }
 
@@ -382,6 +387,7 @@ export class keyStateHandler {
 				this.onlift = onlift;
 			}
 		}
+
 	}
 	hitKey(keyinfo) {
 		let key = this.getKey(keyinfo)
@@ -495,6 +501,13 @@ export class keyStateHandler {
 	deactivateKeyState(KeyInfo = 0) {
 		let key = this.getKey(KeyInfo);
 		if (key != undefined) {
+			key.onlift();
+			key.beingPressed = false;
+			key.executeClick = true;
+		}
+	}
+	deactivateAllKeyStates() {
+		for (let key of this.keys) {
 			key.onlift();
 			key.beingPressed = false;
 			key.executeClick = true;

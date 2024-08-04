@@ -46,7 +46,7 @@ export class classicPhysicsWorld {
         // this.collisionManifolds = new Array();
         this.contactPairs = new Array();
         this.contactPointsList = new Array();
-        this.contactPointsList.addContactPoint = (point) => {
+        this.contactPointsList.__proto__.addContactPoint = (point) => {
             if (!this.contactPointsList.includes(point)) {
                 this.contactPointsList.push(point)
             }
@@ -318,7 +318,6 @@ export class classicPhysicsWorld {
             deltatime /= iterations;
             deltatime *= this.time.speedMultiplier;
 
-            this.contactPointsList.length = 0;
 
             // for(let trackerID in this.collisionTracking.collisionsList){
             // let tracker = this.collisionTracking.collisionsList[trackerID]
@@ -326,6 +325,7 @@ export class classicPhysicsWorld {
 
             for (let substep = 0; substep < iterations; ++substep) {
                 this.contactPairs.length = 0;
+                this.contactPointsList.length = 0;
                 this.stepBodies(deltatime, substep, iterations);
                 this.stepJoints(deltatime)
                 this.BroadPhase(deltatime, substep, iterations);
@@ -440,7 +440,7 @@ export class classicPhysicsWorld {
 
                 this.contactPointsList.addContactPoint(manifoldA.contactPoint1)
                 if (manifoldA.contactPointCount > 1) {
-                    this.contactPointsList.addContactPoint(manifoldA.contactPoint1)
+                    this.contactPointsList.addContactPoint(manifoldA.contactPoint2)
                 }
 
 
@@ -452,6 +452,8 @@ export class classicPhysicsWorld {
                 // this.resolveCollisionWithRotation(manifoldA)
                 this.resolveCollisionWithRotationAndFriction(manifoldA)
 
+
+                this.clearLists()
                 // bodyA.applyFriction(bodyB.dynamicFriction, deltatime)
                 // bodyB.applyFriction(bodyA.dynamicFriction, deltatime)
             } else {
@@ -459,6 +461,10 @@ export class classicPhysicsWorld {
             }
 
         }
+    }
+
+    clearLists() {
+
     }
 
     stepBodies(deltatime, substep, iterations) {
@@ -857,7 +863,7 @@ export class classicPhysicsWorld {
                 drawRay(body.position, dist2D(body.position, vertex1), body.angle + vertex1.angle, lineColour, lineWidth)
                 // line(body.positi/on.x, body.position.y, vertex1.x, vertex1.y, lineColour, lineWidth)
             }
-            line(body.position.x, body.position.y, body.position.x + body.linearVelocity.x, body.position.y + body.linearVelocity.y, "lime", lineWidth*3)
+            line(body.position.x, body.position.y, body.position.x + body.linearVelocity.x, body.position.y + body.linearVelocity.y, "lime", lineWidth * 3)
         } else {
             body.render(body)
         }
@@ -1573,7 +1579,7 @@ export class classicPhysics {
             }
 
             step(deltatime, gravity, shouldCallCalback) {
-                if(this.wait){
+                if (this.wait) {
                     return
                 }
                 if (this.isStatic || this.isTrigger) {

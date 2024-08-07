@@ -154,7 +154,7 @@ export class Camera {
 
 	start() {
 		this.persistStart()
-		this.clipZoom(null, 2, 20)
+		this.clipZoom(null, 1, 20)
 		if (this.autoUpdateAssignedCanvas) this.setCanvas(Caldro.renderer.canvas);
 		this.capturing = true;
 		this.pre_shot();

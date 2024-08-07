@@ -117,7 +117,7 @@ export const vecMath = {
         let mag = this.distance(vector, sourceVector);
         mag = mag == 0 ? 1 : mag;
         if (!preserveReferences) {
-            return new Lvector2D(vector.x / mag, vector.y / mag)
+            return new vec2D(vector.x / mag, vector.y / mag)
         } else {
             vector.x /= mag;
             vector.y /= mag;
@@ -141,7 +141,7 @@ export const vecMath = {
     },
     normal(vector, preserveReferences = false) {
         if (!preserveReferences)
-            return new Lvector2D(-vector.y, vector.x);
+            return new vec2D(-vector.y, vector.x);
         else {
             let initialX = vector.x
             vector.x = -vector.y
@@ -150,7 +150,7 @@ export const vecMath = {
     },
     invert(vector, preserveReferences = false) {
         if (!preserveReferences)
-            return new Lvector2D(-vector.x, -vector.y)
+            return new vec2D(-vector.x, -vector.y)
         else {
             vector.x *= -1
             vector.y *= -1
@@ -165,7 +165,7 @@ export const vecMath = {
 
     add(vector1, vector2, preserveReferences = false) {
         if (!preserveReferences)
-            return new Lvector2D(vector1.x + vector2.x, vector1.y + vector2.y)
+            return new vec2D(vector1.x + vector2.x, vector1.y + vector2.y)
         else {
             vector1.x += vector2.x;
             vector1.y += vector2.y;
@@ -173,7 +173,7 @@ export const vecMath = {
     },
     subtract(vector1, vector2, preserveReferences = false) {
         if (!preserveReferences)
-            return new Lvector2D(vector1.x - vector2.x, vector1.y - vector2.y)
+            return new vec2D(vector1.x - vector2.x, vector1.y - vector2.y)
         else {
             vector1.x -= vector2.x;
             vector1.y -= vector2.y;
@@ -181,7 +181,7 @@ export const vecMath = {
     },
     multiply(vector, number, preserveReferences = false) {
         if (!preserveReferences)
-            return new Lvector2D(vector.x * number, vector.y * number)
+            return new vec2D(vector.x * number, vector.y * number)
         else {
             vector.x *= number
             vector.y *= number
@@ -190,7 +190,7 @@ export const vecMath = {
     divide(vector, number, preserveReferences = false) {
         if (number) {
             if (!preserveReferences) {
-                return new Lvector2D(vector.x / number, vector.y / number)
+                return new vec2D(vector.x / number, vector.y / number)
             } else {
                 vector.x /= number
                 vector.y /= number
@@ -201,7 +201,7 @@ export const vecMath = {
     },
     divideByVector(vector1, vector2, preserveReferences = false) {
         if (!preserveReferences) {
-            return new Lvector2D(vector1.x / vector2.x, vector1.y / vector2.y)
+            return new vec2D(vector1.x / vector2.x, vector1.y / vector2.y)
         } else {
             vector1.x /= vector2.x;
             vector1.y /= vector2.y
@@ -209,14 +209,14 @@ export const vecMath = {
     },
 
     transform(vector, transform) {
-        return new Lvector2D(
+        return new vec2D(
             transform.cos * vector.x - transform.sin * vector.y + transform.positionX,
             transform.sin * vector.x + transform.cos * vector.y + transform.positionY
         )
 
     },
     copy(vector) {
-        return new Lvector2D(vector.x, vector.y);
+        return new vec2D(vector.x, vector.y);
     },
     clone(vector1, vector2){
         vector1.x = vector2.x
@@ -224,7 +224,7 @@ export const vecMath = {
     },
     map(vector, operation) {
         if (!preserveReferences)
-            return new Lvector2D(operation(vector.x), operation(vector.y));
+            return new vec2D(operation(vector.x), operation(vector.y));
         else {
             vector.x = operation(vector.x);
             vector.y = operation(vector.y);
@@ -236,6 +236,9 @@ export const vecMath = {
     croos(vector1, vector2) {
         return vector1.x * vector2.y - vector1.y * vector2.x;
     },
+    zero(){
+        return new vec2D(0, 0)
+    }
 }
 
 export const originVector = new vector2D(0, 0)

@@ -18,6 +18,8 @@ const MIN_FRAMETIME = 0
 const FPS_30 = fpsToDecimal(30) // around 0.033 ms
 const FPS_60 = fpsToDecimal(60) // around 0.016 ms
 
+let MAX_MEMORY = 2
+
 export const DEBUGGER = {
     active: true,
     time: {
@@ -43,10 +45,10 @@ export const DEBUGGER = {
         UPDATE();
         RENDER();
     },
-    getFPS(){
-        return  1 / this.time.updateTime + this.time.renderTime
+    getFPS() {
+        return 1 / this.time.updateTime + this.time.renderTime
     },
-    getMemoryUsage(){
+    getMemoryUsage() {
         if (performance.memory) {
             const usedHeapSize = performance.memory.usedJSHeapSize;
             const heapSizeLimit = performance.memory.jsHeapSizeLimit;
@@ -65,32 +67,16 @@ function UPDATE() {
 
 }
 
+
 function RENDER() {
-    let updateTimeHeight = getHeightFromTimeStamp(DEBUGGER.time.updateTime)
-    let renderTimeHeight = getHeightFromTimeStamp(DEBUGGER.time.renderTime)
-    let browserDelayHeight = getHeightFromTimeStamp(DEBUGGER.time.browserDelay)
     ctx.fillStyle = bgColor;
 
-    // ctx.fillRect(0, 0, WIDTH, HEIGHT)
+    /// draw a background
     ctx.fillStyle = bgColor;
-    ctx.fillRect(canvas.width-resolution, 0, resolution, HEIGHT)
-    
-    
-    /// draw time information
-    ctx.fillStyle = "lime"
-    if(DEBUGGER.updateTime > FPS_60)
-        ctx.fillStyle = "orange"
-    if(DEBUGGER.updateTime > FPS_30)
-        ctx.fillStyle = "red"
-    ctx.fillRect(canvas.width-resolution, HEIGHT-updateTimeHeight, resolution, updateTimeHeight)
-    ctx.fillStyle = "skyblue"
-    ctx.fillRect(canvas.width-resolution, HEIGHT-updateTimeHeight-renderTimeHeight, resolution, renderTimeHeight)
-    ctx.fillStyle = "orange"
-    ctx.fillRect(canvas.width-resolution, HEIGHT-browserDelayHeight-updateTimeHeight-renderTimeHeight, resolution, browserDelayHeight)
-    
-    /// draw memory
-    ctx.fillStyle = "red"
-    ctx.fillRect(canvas.width-resolution, getYCoordsFromTimeStamp(scaleTo(DEBUGGER.getMemoryUsage(), 0, 2, MIN_FRAMETIME, MAX_FRAMETIME)), resolution, resolution)
+    ctx.fillRect(canvas.width - resolution, 0, resolution, HEIGHT)
+
+   renderMSDelayTimeline();
+   renderMemoryTimeline();
 
     /// move the drawwing currently on the canvas to one resolution worht of pixeld to the left
     smearCanvas()
@@ -102,12 +88,51 @@ function RENDER() {
     ctx.fillRect(0, getYCoordsFromTimeStamp(FPS_30), WIDTH, 1)
 }
 
-function smearCanvas(){
+
+
+function renderMSDelayTimeline() {
+    let updateTimeHeight = getHeightFromTimeStamp(DEBUGGER.time.updateTime)
+    let renderTimeHeight = getHeightFromTimeStamp(DEBUGGER.time.renderTime)
+    let browserDelayHeight = getHeightFromTimeStamp(DEBUGGER.time.browserDelay)
+
+
+    /// draw time information
+    ctx.fillStyle = "lime"
+    if (DEBUGGER.updateTime > FPS_60)
+        ctx.fillStyle = "orange"
+    if (DEBUGGER.updateTime > FPS_30)
+        ctx.fillStyle = "red"
+    ctx.fillRect(canvas.width - resolution, HEIGHT - updateTimeHeight, resolution, updateTimeHeight)
+    ctx.fillStyle = "skyblue"
+    ctx.fillRect(canvas.width - resolution, HEIGHT - updateTimeHeight - renderTimeHeight, resolution, renderTimeHeight)
+    ctx.fillStyle = "orange"
+    ctx.fillRect(canvas.width - resolution, HEIGHT - browserDelayHeight - updateTimeHeight - renderTimeHeight, resolution, browserDelayHeight)
+}
+function renderMemoryTimeline(){
+    let memoryUsage = DEBUGGER.getMemoryUsage();
+    if (memoryUsage) {
+        /// draw memory
+        ctx.fillStyle = "red"
+        if (memoryUsage > MAX_MEMORY) {
+            ctx.fillStyle = "white"
+            ctx.globalAlpha = 0.5
+            ctx.fillRect(canvas.width - resolution, 0, resolution, HEIGHT)
+            ctx.globalAlpha = 1
+            MAX_MEMORY = memoryUsage
+        } else {
+            ctx.fillRect(canvas.width - resolution, getYCoordsFromTimeStamp(scaleTo(memoryUsage, 0, MAX_MEMORY, MIN_FRAMETIME, MAX_FRAMETIME)), resolution, resolution)
+        }
+    }
+}
+
+function smearCanvas() {
     // offCtx.fillStyle = "white"
     // offCtx.fillRect(0, 0, 100, 100)
     offCtx.drawImage(canvas, 0, 0);
     ctx.drawImage(offScreenCanvas, -resolution, 0)
 }
+
+
 
 
 
@@ -137,15 +162,15 @@ function initialize() {
 }
 
 /// convert the update time of a freame to a y coordinate on the canvwa dependent on the height
-function getYCoordsFromTimeStamp(timeInMS){
+function getYCoordsFromTimeStamp(timeInMS) {
     return HEIGHT - scaleTo(timeInMS, MIN_FRAMETIME, MAX_FRAMETIME, 0, HEIGHT);
 }
-function getHeightFromTimeStamp(timeInMS){
+function getHeightFromTimeStamp(timeInMS) {
     return scaleTo(timeInMS, MIN_FRAMETIME, MAX_FRAMETIME, 0, HEIGHT);
 }
 
-function fpsToDecimal(fps = 60){
-    return (1/fps)
+function fpsToDecimal(fps = 60) {
+    return (1 / fps)
 }
 
 function resizeCanvas() {

@@ -1,5 +1,5 @@
 // Classic_Physics master
-import { Lvector2D, vec2D } from "./Caldro_Vectors_and_Matrices.js";
+import { vec2D, vector2D } from "./Caldro_Vectors_and_Matrices.js";
 import { clip, radToDeg, degToRad } from "./Caldro_Math.js";
 import { INFINITY } from "./Caldro_Utility_Constants.js";
 import { dist2D, doTask, generateRandomId } from "./Caldro_Utility_Functions.js";
@@ -8,6 +8,7 @@ import Caldro from "./Caldro.js";
 import { alpha, drawPolypon, drawLine, circle, line, rect, strect, txt, font, drawRay, stCircle, Rect, stDrawPolypon, cc, fillColor } from "./Caldro_Rendering.js";
 import { angleBetweenPoints } from "./Caldro_Physics_Utilities.js";
 import { keyboard } from "./Caldro_Controls.js";
+import { RigidBody } from "./physics/Caldro_RigidBody.js";
 
 
 export class classicPhysicsWorld {
@@ -39,7 +40,7 @@ export class classicPhysicsWorld {
 
 
     constructor() {
-        this.gravity = new Lvector2D(0, 9.81)
+        this.gravity = new vec2D(0, 9.81)
         this.bodies = new Array();
         this.joints = new Array();
         this.epochsPerStep = 1;
@@ -300,7 +301,7 @@ export class classicPhysicsWorld {
     test(deltatime = randomNumber(0.01, 0.03), epochs = 100) {
         let world = new classicPhysicsWorld();
         let physics = new classicPhysics();
-        let test = physics.createCircleBody(new Lvector2D(0, 0), 1, 1, 1, false);
+        let test = physics.createCircleBody(new vec2D(0, 0), 1, 1, 1, false);
         world.addBody(test)
         world.step(deltatime, epochs);
         let a = world.gravity.y
@@ -392,12 +393,18 @@ export class classicPhysicsWorld {
             if (bodyA.isStatic == true && bodyB.isStatic == true) continue
 
             let collisionInformation = false
-            try {
-                collisionInformation = Collisions.Collide(bodyA, bodyB)
-            } catch (error) {
-                console.log(contactPair, "Array Length: " + this.bodies.length)
-                console.log(bodyA, bodyB)
-            }
+
+            // check for a collision
+            collisionInformation = Collisions.Collide(bodyA, bodyB)
+            // try {
+            //     collisionInformation = Collisions.Collide(bodyA, bodyB)
+            // } catch (error) {
+            //     console.log(contactPair, "Array Length: " + this.bodies.length)
+            //     console.log(bodyA, bodyB)
+            // }
+
+
+            /// if there is a collsion
             if (collisionInformation) {
                 bodyA.inCollision = true
                 bodyB.inCollision = true
@@ -453,7 +460,6 @@ export class classicPhysicsWorld {
                 this.resolveCollisionWithRotationAndFriction(manifoldA)
 
 
-                this.clearLists()
                 // bodyA.applyFriction(bodyB.dynamicFriction, deltatime)
                 // bodyB.applyFriction(bodyA.dynamicFriction, deltatime)
             } else {
@@ -471,7 +477,9 @@ export class classicPhysicsWorld {
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
             body.inCollision = false
-            body.step(deltatime, this.gravity, substep == (iterations - 1))
+            RigidBody.step(body, deltatime, this.gravity, substep === (iterations - 1))
+            // body.step(deltatime, this.gravity, substep == (iterations - 1))
+            // body.step(deltatime, this.gravity, substep == (iterations - 1))
             // body.applyFriction(body.staticFriction, deltatime)
         }
     }
@@ -575,8 +583,8 @@ export class classicPhysicsWorld {
             impulseList[i] = impulse
         }
 
-        let forceA = new Lvector2D(0, 0);
-        let forceB = new Lvector2D(0, 0);
+        let forceA = new vec2D(0, 0);
+        let forceB = new vec2D(0, 0);
 
         for (let i = 0; i < contactPointCount; ++i) {
             let impulse = impulseList[i]
@@ -667,8 +675,8 @@ export class classicPhysicsWorld {
             impulseList[i] = impulse
         }
 
-        let forceA = new Lvector2D(0, 0);
-        let forceB = new Lvector2D(0, 0);
+        let forceA = new vec2D(0, 0);
+        let forceB = new vec2D(0, 0);
 
         for (let i = 0; i < contactPointCount; ++i) {
             let impulse = impulseList[i]
@@ -678,13 +686,15 @@ export class classicPhysicsWorld {
 
             if (!bodyA.isStatic) {
                 let force = vecMath.multiply(vecMath.invert(impulse), bodyA.invMass)
-                forceA.add(force)
+                // forceA.add(force)
+                vecMath.add(forceA, force, true)
                 bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, force)
                 bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, impulse) * bodyA.invInertia)
             }
             if (!bodyB.isStatic) {
                 let force = vecMath.multiply(impulse, bodyB.invMass);
-                forceB.add(force)
+                // forceB.add(force)
+                vecMath.add(forceB, force, true)
                 bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, force)
                 bodyB.angularVelocity += radToDeg(vecMath.croos(rb, impulse) * bodyB.invInertia)
             }
@@ -715,7 +725,8 @@ export class classicPhysicsWorld {
             if (Collisions.nearlyEqual(tangent.x, 0) && Collisions.nearlyEqual(tangent.y, 0)) {
                 continue
             } else {
-                tangent.normalize();
+                vecMath.normalize(tangent, true)
+                // tangent.normalize();
             }
             /* let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
             if (contactVelocityMagnitude > 0) {
@@ -747,6 +758,7 @@ export class classicPhysicsWorld {
             frictionImpulseList[i] = frictionImpulse
         }
 
+        /// add friction impulses
         for (let i = 0; i < contactPointCount; ++i) {
             let frictionImpulse = frictionImpulseList[i]
             if (!frictionImpulse) continue
@@ -755,12 +767,12 @@ export class classicPhysicsWorld {
 
             if (!bodyA.isStatic) {
                 let force = vecMath.multiply(vecMath.invert(frictionImpulse), bodyA.invMass)
-                bodyA.linearVelocity.add(force)
+                vecMath.add(bodyA.linearVelocity, force, true)
                 bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, frictionImpulse) * bodyA.invInertia)
             }
             if (!bodyB.isStatic) {
                 let force = vecMath.multiply(frictionImpulse, bodyB.invMass)
-                bodyB.linearVelocity.add(force)
+                vecMath.add(bodyB.linearVelocity, force, true)
                 bodyB.angularVelocity += radToDeg(vecMath.croos(rb, frictionImpulse) * bodyB.invInertia)
             }
         }
@@ -954,8 +966,8 @@ export class Collisions {
         let shapeTypeA = bodyA.shapeType
         let shapeTypeB = bodyB.shapeType
 
-        let contactPoint1 = Lvector2D.zero();
-        let contactPoint2 = Lvector2D.zero();
+        let contactPoint1 = vecMath.zero();
+        let contactPoint2 = vecMath.zero();
         let contactPointCount = 0;
 
         let typeAisPolygon = (shapeTypeA == classicPhysicsWorld.shapeType.box || shapeTypeA == classicPhysicsWorld.shapeType.polygon)
@@ -1084,7 +1096,9 @@ export class Collisions {
 
         let typeAisPolygon = (shapeTypeA == classicPhysicsWorld.shapeType.box || shapeTypeA == classicPhysicsWorld.shapeType.polygon)
         let typeBisPolygon = (shapeTypeB == classicPhysicsWorld.shapeType.box || shapeTypeB == classicPhysicsWorld.shapeType.polygon)
+
         if (typeAisPolygon) {
+
             if (typeBisPolygon) {
                 return Collisions.intersectPolygons(bodyA.getTransformedVerticies(), bodyB.getTransformedVerticies())
             } else if (shapeTypeB == classicPhysicsWorld.shapeType.circle) {
@@ -1094,12 +1108,15 @@ export class Collisions {
                 }
                 return collisionInformation;
             }
+
         } else if (shapeTypeA == classicPhysicsWorld.shapeType.circle) {
+
             if (typeBisPolygon) {
                 return Collisions.intersectCirclePolygon(bodyA.position, bodyA.radius, bodyB.getTransformedVerticies())
             } else if (shapeTypeB == classicPhysicsWorld.shapeType.circle) {
                 return Collisions.intersectCircles(bodyA.position, bodyA.radius, bodyB.position, bodyB.radius)
             }
+
         } else {
             console.error("A body has been passed an illegal shapeType")
             console.error(`It has a shapeType ${shapeTypeA.shapeType} and is this body`)
@@ -1110,7 +1127,7 @@ export class Collisions {
     }
 
     static intersectCirclePolygon(circleCenter, circleRadius, verticies) {
-        let normal = new Lvector2D(0, 0);
+        let normal = new vec2D(0, 0);
         let depth = INFINITY;
 
         let axis, axisDepth, projA, projB;
@@ -1122,7 +1139,7 @@ export class Collisions {
             let edge = vecMath.subtract(vertexB, vertexA)
             axis = vecMath.normal(edge) // the asix for the seperation test
 
-            axis = vecMath.normalize(axis);
+            vecMath.normalize(axis, true);
             projA = Collisions.projectVerticies(verticies, axis)
             projB = Collisions.projectCircle(circleCenter, circleRadius, axis)
 
@@ -1142,7 +1159,7 @@ export class Collisions {
 
         axis = vecMath.subtract(cp, circleCenter)
 
-        axis = vecMath.normalize(axis);
+        vecMath.normalize(axis, true);
         projA = Collisions.projectVerticies(verticies, axis)
         projB = Collisions.projectCircle(circleCenter, circleRadius, axis)
 
@@ -1159,7 +1176,7 @@ export class Collisions {
         let polygonCenter = Collisions.findArithmeticMeanPoint(verticies)
         let direction = vecMath.subtract(polygonCenter, circleCenter)
         if (vecMath.dot(direction, normal) < 0) {
-            normal = vecMath.invert(normal)
+            vecMath.invert(normal, true)
         }
 
         return {
@@ -1169,7 +1186,7 @@ export class Collisions {
     }
 
     static isPointInPolygon(point, verticies) {
-        let normal = new Lvector2D(0, 0);
+        let normal = new vec2D(0, 0);
         let depth = INFINITY;
 
         for (let i = 0; i < verticiesA.length; ++i) {
@@ -1179,7 +1196,7 @@ export class Collisions {
             let edge = vecMath.subtract(vertexB, vertexA)
             let axis = vecMath.normal(edge) // the asix for the seperation test
 
-            axis = vecMath.normalize(axis);
+            vecMath.normalize(axis, true);
             let projA = Collisions.projectVerticies(verticiesA, axis)
             let projB = Collisions.projectVerticies(verticiesB, axis)
 
@@ -1221,7 +1238,7 @@ export class Collisions {
         let direction = vecMath.subtract(centerB, centerA)
 
         if (vecMath.dot(direction, normal) < 0) {
-            normal = vecMath.invert(normal)
+            vecMath.invert(normal, true)
         }
 
         return {
@@ -1231,8 +1248,9 @@ export class Collisions {
     }
 
     static intersectPolygons(verticiesA, verticiesB) {
-        let normal = new Lvector2D(0, 0);
+        let normal = new vec2D(0, 0);
         let depth = INFINITY;
+
         for (let i = 0; i < verticiesA.length; ++i) {
             let vertexA = verticiesA[i]
             let vertexB = verticiesA[(i + 1) % verticiesA.length]
@@ -1240,7 +1258,7 @@ export class Collisions {
             let edge = vecMath.subtract(vertexB, vertexA)
             let axis = vecMath.normal(edge) // the asix for the seperation test
 
-            axis = vecMath.normalize(axis);
+            vecMath.normalize(axis, true);
             let projA = Collisions.projectVerticies(verticiesA, axis)
             let projB = Collisions.projectVerticies(verticiesB, axis)
 
@@ -1261,7 +1279,7 @@ export class Collisions {
             let edge = vecMath.subtract(vertexB, vertexA)
             let axis = vecMath.normal(edge) // the asix for the seperation test
 
-            axis = vecMath.normalize(axis);
+            vecMath.normalize(axis, true);
             let projA = Collisions.projectVerticies(verticiesA, axis)
             let projB = Collisions.projectVerticies(verticiesB, axis)
 
@@ -1282,7 +1300,8 @@ export class Collisions {
         let direction = vecMath.subtract(centerB, centerA)
 
         if (vecMath.dot(direction, normal) < 0) {
-            normal = vecMath.invert(normal)
+            /// coo, removing true here will make the body act like a portal of soorts
+            vecMath.invert(normal, true)
         }
 
         return {
@@ -1311,14 +1330,15 @@ export class Collisions {
         let onLines2 = Math.min(lineBpt1.x, lineBpt2.x) <= x || Math.max(lineBpt1.x, lineBpt2.x) >= x &&
             Math.min(lineBpt1.y, lineBpt2.y) <= y || Math.max(lineBpt1.y, lineBpt2.y) >= y;
         if (!onLines1 || !onLines2) return; // intersections point is not on one of the line segments
-        return new Lvector2D(x, y);
+        return new vec2D(x, y);
     }
 
+    /// UNUSED
     static findClosestPointOnPolygon(referencePoint, verticies) {
         let clossetPoint = verticies[0];
         let minDistance = INFINITY;
         for (let i = 0; i < verticies.length; ++i) {
-            let distance = vecMath.distance(referencePoint, verticies[i])
+            let distance = vecMath.distanceSquared(referencePoint, verticies[i])
             if (distance < minDistance) {
                 minDistance = distance
                 clossetPoint = verticies[i]
@@ -1331,7 +1351,7 @@ export class Collisions {
         let index = -1
         let minDistance = INFINITY;
         for (let i = 0; i < verticies.length; ++i) {
-            let distance = vecMath.distance(referencePoint, verticies[i])
+            let distance = vecMath.distanceSquared(referencePoint, verticies[i])
             if (distance < minDistance) {
                 minDistance = distance
                 index = i
@@ -1348,7 +1368,7 @@ export class Collisions {
             sumX += vector.x
             sumY += vector.y
         }
-        return new Lvector2D(sumX / verticies.length, sumY / verticies.length)
+        return new vec2D(sumX / verticies.length, sumY / verticies.length)
     }
 
     static projectCircle(center, radius, axis) {
@@ -1385,6 +1405,7 @@ export class Collisions {
         }
     }
 
+    /// Optimization: Should square the verticies to avoid sqrt from distance calculation
     static intersectCircles(centerA, radiusA, centerB, radiusB) {
         let distance = vecMath.distance(centerA, centerB);
         let radii = radiusA + radiusB;
@@ -1446,8 +1467,8 @@ export class classicPhysics {
         this.rigidBody = class {
             constructor(position, mass, inertia, area, density, restitution, isStatic, radius, scaleX, scaleY, verticies, shapeType) {
                 this.position = position;
-                this.oldPosition = Lvector2D.copy(position);
-                this.linearVelocity = new Lvector2D(0, 0);
+                this.oldPosition = vecMath.copy(position);
+                this.linearVelocity = new vec2D(0, 0);
                 this.linearVelocityCap = {
                     minX: -INFINITY, maxX: INFINITY,
                     minY: -INFINITY, maxY: INFINITY
@@ -1455,7 +1476,7 @@ export class classicPhysics {
                 this.angle = 0;
                 this.angularVelocity = 0;
                 this.angularAcceleration = 0
-                this.force = new Lvector2D(0, 0);
+                this.force = new vec2D(0, 0);
 
                 this.lifetime = 0;
                 this.lockedX = false;
@@ -1482,7 +1503,6 @@ export class classicPhysics {
                 /// what does this even do right now
                 this.isTrigger = false;
 
-                this.radius = radius;
                 this.scaleX = scaleX;
                 this.scaleY = scaleY;
                 this.aabb;
@@ -1498,6 +1518,8 @@ export class classicPhysics {
                         this.verticies = verticies;
                     }
                     this.transformedVerticies = new Array(this.verticies.length);
+                } else {
+                    this.radius = radius;
                 }
 
                 this.transformUpdateRequired = true;
@@ -1576,65 +1598,6 @@ export class classicPhysics {
                     this.aabbUpdateRequired = false;
                 }
                 return this.aabb;
-            }
-
-            step(deltatime, gravity, shouldCallCalback) {
-                if (this.wait) {
-                    return
-                }
-                if (this.isStatic || this.isTrigger) {
-                    if (shouldCallCalback) this.callback();
-                    return;
-                };
-
-                this.lifetime += Caldro.time.deltatime
-
-                /* this.linearVelocity = vecMath.add(this.linearVelocity, vecMath.multiply(gravity, deltatime))
-                this.position = vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime))
-                this.angle += this.angularVelocity * deltatime
-                this.force = new Lvector2D(0, 0)
-                this.aabbUpdateRequired = true;
-                this.transformUpdateRequired = true; */
-
-                let acceleration = vecMath.divide(this.force, this.mass)
-                if (this.gravity) {
-                    vecMath.add(acceleration, vecMath.multiply(gravity, deltatime), true)
-                }
-
-                vecMath.add(this.linearVelocity, acceleration, true)
-
-                /// clamp linear velocities
-                this.linearVelocity.x = clip(this.linearVelocity.x, this.linearVelocityCap.minX, this.linearVelocityCap.maxX)
-                this.linearVelocity.y = clip(this.linearVelocity.y, this.linearVelocityCap.minY, this.linearVelocityCap.maxY)
-
-                /// update the old position
-                vecMath.clone(this.oldPosition, this.position)
-
-
-                /// Euler integration
-                let newPosition = vecMath.add(this.position, vecMath.multiply(this.linearVelocity, deltatime))
-
-                //// update positions if they are not locked
-                if (!this.lockedX)
-                    this.position.x = newPosition.x
-                if (!this.lockedY)
-                    this.position.y = newPosition.y
-
-                /// update angular acceleration and angles if they are not locked
-                this.angularVelocity += this.angularAcceleration * deltatime
-                if (!this.lockedAngle)
-                    this.angle += this.angularVelocity * deltatime
-
-
-                /// reset the forces to be aded nex frame
-                this.force.x = this.force.y = 0
-
-                /// if motion occured, update verticies
-                this.transformUpdateRequired = true;
-                this.aabbUpdateRequired = true;
-
-                if (!shouldCallCalback) return
-                this.callback();
             }
 
             setMass(mass) {
@@ -1727,13 +1690,13 @@ export class classicPhysics {
         }
 
         this.joint = class {
-            constructor(bodyA, bodyB, length, k, dampingRatio = 0.9, offsetA = Lvector2D.zero(), offsetB = Lvector2D.zero()) {
+            constructor(bodyA, bodyB, length, k, dampingRatio = 0.9, offsetA = vecMath.zero(), offsetB = vecMath.zero()) {
                 this.bodyA = bodyA;
                 this.bodyB = bodyB;
                 this.transformPointA = new transformPoint(bodyA.position.x, bodyA.position.y, bodyA.angle)
                 this.transformPointB = new transformPoint(bodyB.position.x, bodyB.position.y, bodyB.angle)
-                this.offsetA = offsetA || Lvector2D.zero();
-                this.offsetB = offsetB || Lvector2D.zero();
+                this.offsetA = offsetA || vecMath.zero();
+                this.offsetB = offsetB || vecMath.zero();
                 this.pointA = vecMath.add(this.bodyA.position, vecMath.transform(this.offsetA, this.transformPointA))
                 this.pointB = vecMath.add(this.bodyB.position, vecMath.transform(this.offsetB, this.transformPointB))
                 this.oldPointA = vecMath.copy(this.pointA)
@@ -1770,7 +1733,7 @@ export class classicPhysics {
                 let offsetX = vx * percent;
                 let offsetY = vy * percent;
 
-                let force = vecMath.multiply(new Lvector2D(offsetX, offsetY), this.k)
+                let force = vecMath.multiply(new vec2D(offsetX, offsetY), this.k)
                 // let damper = vecMath.multiply(force, 1)
                 let damper = vecMath.multiply(vecMath.subtract(
                     velA, velB), -this.dampingRatio)
@@ -1824,10 +1787,10 @@ export class classicPhysics {
         let bottom = top + height;
 
         let verticies = new Array();
-        verticies.push(new Lvector2D(left, top))
-        verticies.push(new Lvector2D(right, top))
-        verticies.push(new Lvector2D(right, bottom))
-        verticies.push(new Lvector2D(left, bottom))
+        verticies.push(new vec2D(left, top))
+        verticies.push(new vec2D(right, top))
+        verticies.push(new vec2D(right, bottom))
+        verticies.push(new vec2D(left, bottom))
 
         return verticies;
     }
@@ -1835,7 +1798,7 @@ export class classicPhysics {
     static createVerticies(vertexAray = new Array(), scale = 1) {
         let verticies = new Array();
         for (let vertexData of vertexAray) {
-            let vertex = new Lvector2D(vertexData[0] * scale, vertexData[1] * scale)
+            let vertex = new vec2D(vertexData[0] * scale, vertexData[1] * scale)
             verticies.push(vertex)
         }
         return verticies
@@ -1844,7 +1807,7 @@ export class classicPhysics {
     static scalaeVerticies(verticies, scaleX, scaleY) {
         let scaledVerticies = new Array();
         for (let vertex of verticies) {
-            scaledVerticies.push(new Lvector2D(vertex.x * scaleX, vertex.y * scaleY))
+            scaledVerticies.push(new vec2D(vertex.x * scaleX, vertex.y * scaleY))
         }
         return scaledVerticies
     }
@@ -1956,8 +1919,8 @@ export class classicPhysics {
 
 
         for (let vertex of verticies) {
-            // let newVertex = new Lvector2D(vertex.x - width / 2, vertex.y - height / 2)
-            let newVertex = new Lvector2D(vertex.x - midPoint.x, vertex.y - midPoint.y)
+            // let newVertex = new vec2D(vertex.x - width / 2, vertex.y - height / 2)
+            let newVertex = new vec2D(vertex.x - midPoint.x, vertex.y - midPoint.y)
             newVerticies.push(newVertex)
         }
         return newVerticies
@@ -2065,8 +2028,8 @@ export class classicPhysics {
 
 export class classicAABB {
     constructor(minX, minY, maxX, maxY) {
-        this.min = new Lvector2D(minX, minY);
-        this.max = new Lvector2D(maxX, maxY);
+        this.min = new vec2D(minX, minY);
+        this.max = new vec2D(maxX, maxY);
     }
     containVectors(vector1, vector2) {
         this.min.x = Math.min(vector1.x, vector2.x)

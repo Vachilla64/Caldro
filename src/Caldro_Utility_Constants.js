@@ -5,6 +5,7 @@ export const CALDGRAY = "rgba(20, 20, 20, 1)"
 export const CALDGREY = CALDGRAY;
 export const CALDRED = "rgba(80, 10, 20, 1)"
 export const CALDBLUE = "rgba(20, 20, 40, 1)"
+export const COOLBLUE = "#2776EA"
 export const CALDGREEN = "rgba(20, 60, 20, 1)"
 
 export const ORIGIN = new vec2D(0, 0);

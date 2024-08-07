@@ -11,7 +11,7 @@ import {
 	cc,
 	alpha,
 } from "./Caldro_Rendering.js";
-import { place, randomNumber, timeTask } from "./Caldro_Utility_Functions.js";
+import { doTask, place, randomNumber, timeTask } from "./Caldro_Utility_Functions.js";
 import { arraySum } from "./Caldro_Utility_Functions.js";
 import { init_controls } from "./Caldro_Controls.js";
 import { getConstructorName } from "./Caldro_Utility_Functions.js";
@@ -31,7 +31,7 @@ export const CaldroKeys = new keyStateHandler();
 
 
 
-var Caldro = {
+const Caldro = {
 	time: {
 		deltatime: 0,
 		fixedTime: 0.016,
@@ -53,21 +53,9 @@ var Caldro = {
 		},
 		update: function () {
 			let ct = Caldro.time
-			let now = window.performance.now() / 1000
-			let deltatime = now - ct.previousFrame
-			// ct._lastUpdateElapsedTime += deltatime
-
-			if (ct._maxFPS) {
-				if ((deltatime < (1 / ct._maxFPS))) {
-					return false;
-				}
-				ct._lastUpdateElapsedTime = 0
-				ct.previousFrame = now
-			}
-
-			ct.currentFrame = window.performance.now() / 1000;
-			ct.deltatime = ct.currentFrame - ct._lastFrame //+ ((ct.currentFrame - ct._lastFrame) - (1/ct._maxFPS))
-			ct._lastFrame = ct.currentFrame
+			ct.currentFrame = window.performance.now() / 1000
+			let deltatime = ct.currentFrame - ct.previousFrame
+			ct.previousFrame = ct.currentFrame
 
 			if (ct.safetyDeltatimeCap != null) {
 				if (deltatime > ct.safetyDeltatimeCap) {
@@ -75,16 +63,19 @@ var Caldro = {
 				}
 			}
 
+			ct.deltatime = deltatime
+
 			++ct.cycles;
+
 			ct.elapsedTime += ct.deltatime;
 			ct.framesPerSecond = 1 / ct.deltatime;
 			ct.lastRecordedFramesPerSecond.push(ct.framesPerSecond)
+
 			if (ct.lastRecordedFramesPerSecond.length > ct.avergeFrameRateRecordingSpan) {
 				ct.lastRecordedFramesPerSecond.shift();
 			}
-			if (ct.deltatime == Infinity) {
-				console.log(ct)
-			}
+
+			/// if all goes well, retrun true
 			return true;
 		},
 		setMaxFPS(maxFPS) {
@@ -473,7 +464,7 @@ var Caldro = {
 		FIXEDUPDATE() { },
 		RENDER() { },
 		ONSTART() { },
-		PRELOOP() {},
+		PRELOOP() { },
 		START() {
 			this.running = true;
 		},
@@ -487,50 +478,81 @@ window.addEventListener("error", () => {
 	Caldro.engine.KILL();
 })
 
-
+export const Time = {
+	deltatime: 0,
+	fixedTime: 0.016,
+	TICKS_PER_SECOND: 60,
+	MAX_FRAMESKIP: 5,
+	previousFrame: 0,
+	elapsedTime: 0,
+	_lagTime: 0,
+	_maxFixedTimeLoops: 2,
+	init() {
+		this.SKIP_TICKS = 1000 / this.TICKS_PER_SECOND;
+		return
+		this.previousFrame = window.performance.now() * 0.001;
+	}
+}
 
 const INFINITE_UPDATE_LOOP = function () {
 	window.requestAnimationFrame(INFINITE_UPDATE_LOOP);
 
 	/// update keybord tracker
 	CaldroKeys.updateKeys();
+
 	Caldro.engine.PRELOOP();
-	
+
+	let updateTime = 0;
+	let fixedUpdateTime = 0;
+
+	/// update the Time object Here
+	let now = window.performance.now() * 0.001 /// getting current time but converting to MS before hand
+	Time.deltatime = now - Time.previousFrame
+	Time.previousFrame = now;
+
+	Time.elapsedTime += Time.deltatime
+	Time._lagTime += Time.deltatime
+
 	/// update Caldro time
 	if (Caldro.time.update()) {
-		
 		if (Caldro.engine.running) {
-			
-			let updateTime = timeTask(() => {
-				if (!Caldro.engine.paused){
+			/// run frame update and check time
+			updateTime = timeTask(() => {
+				if (!Caldro.engine.paused) {
 					Caldro.engine.UPDATE();
+
+
+			/// run fixd update and check time
+			fixedUpdateTime = timeTask(() => {
+						let loops = 0
+						while (Time._lagTime >= Time.fixedTime) {
+							if (loops > Time._maxFixedTimeLoops) break;
+							if (Caldro.engine.running) {
+								if (!Caldro.engine.paused)
+									Caldro.engine.FIXEDUPDATE(Time.fixedTime);
+							}
+							Time._lagTime -= Time.fixedTime
+							loops++
+						}
+						Time._lagTime = 0
+					})
 				}
 			})
-			let renderTime = timeTask(() => {
-				Caldro.engine.RENDER();
-			})
-			if (Caldro.engine.paused) {
-				alpha(0.2)
-				rect(0, 0, c.width, c.height, "white")
-				alpha(1)
-			}
-
 			/// heave task simulation
 			// for(let i = 0; i < Math.round(Caldro.time.elapsedTime)*100000; ++i){
 			// 	Math.sin(Math.cos(Math.sqrt(Math.random())))
 			// }
-
-			DEBUGGER.UPDATE(updateTime, renderTime)
-			// c.getContext('2d').save();
-			/// flipping coordinate system to match graph
-			// c.getContext('2d').scale(1, -1);
-			// c.getContext('2d').restore();
-		}
-		try {
-		} catch {
-			// console.error("Caldro infinite loop ain't looping")
 		}
 	}
+	let renderTime = timeTask(() => {
+		Caldro.engine.RENDER();
+	})
+	if (Caldro.engine.paused) {
+		alpha(0.2)
+		rect(0, 0, c.width, c.height, "white")
+		alpha(1)
+	}
+	DEBUGGER.UPDATE(updateTime + fixedUpdateTime, renderTime)
 }
 
 let startedLoop = false
@@ -538,6 +560,7 @@ let startedLoop = false
 const START_INFINITE_LOOPS = function () {
 	try {
 		if (startedLoop) console.error("Cannot initialize the infinite loop more than once")
+		Time.init();
 		INFINITE_UPDATE_LOOP()
 		startedLoop = true
 	} catch {

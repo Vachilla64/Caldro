@@ -2,7 +2,7 @@
 
 
 // [SID]
-export class canvasImageManager {
+export class CanvasImageManager {
 	constructor(imageCanvas = document.createElement('canvas')) {
 		this.canvas = imageCanvas;
 		this.maxWidth = 10000; this.maxHeight = 10000;

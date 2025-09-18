@@ -1,8 +1,8 @@
 // Animation
-import { interpolate } from "./Caldro_Math.js";
-import { NULLFUNCTION, INFINITY } from "./Caldro_Utility_Constants.js";
-import { getConstructorName } from "./Caldro_Utility_Functions.js";
-import { arrUtils } from "./Caldro_Vectors_and_Matrices.js";
+import { interpolate } from "../Caldro_Math.js";
+import { NULLFUNCTION, INFINITY } from "../Caldro_Utility_Constants.js";
+import { getConstructorName } from "../Caldro_Utility_Functions.js";
+import { arrUtils } from "../Caldro_Vectors_and_Matrices.js";
 
 // [SID]
 export class AnimationGraphNode {
@@ -279,6 +279,33 @@ export class AnimationGraph {
         }
     }
 }
+
+
+// Example animation usage
+export function animateObject(object, property, start, end, duration, easingFunction) {
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        if (elapsed < duration) {
+            const value = easingFunction(
+                elapsed,    // currentTime
+                start,     // start value
+                end - start, // totalChange 
+                duration   // duration
+            );
+            object[property] = value;
+            requestAnimationFrame(update);
+        } else {
+            object[property] = end;
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// Usage example
+// animate(player, 'x', 0, 100, 1000, 'easeInOutQuad');
 
 function animationEnvelope(length = 1, lowestValue = 0, maxValue = 1, attackEnd = 0.25, releaseStart = 0.75) {
     let envelope = new AnimationGraph()

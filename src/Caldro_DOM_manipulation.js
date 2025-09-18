@@ -63,9 +63,12 @@ export function createMainCanvas(addToDOM = false, id = undefined, width = windo
 		container.id = "Caldro_Canvas_Container";
 		container.style.width = width;
 		container.style.height = height;
+        container.style.position = "fixed"
 		// console.log(container)
 		container.appendChild(canv)
-		document.body.appendChild(container);
+        // if (!document.getElementById("Caldro_Canvas_Container")) {
+            document.body.appendChild(container);
+        // }
 	}
 	return canv;
 };

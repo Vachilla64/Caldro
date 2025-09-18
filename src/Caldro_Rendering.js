@@ -3,7 +3,7 @@ import { NULLFUNCTION } from "./Caldro_Utility_Constants.js";
 import Caldro from "./Caldro.js";
 import { degToRad, PI_2 } from "./Caldro_Math.js";
 import { c } from "./Caldro_Canvas.js"
-import { randomNumber } from "./Caldro_Utility_Functions.js";
+import { doTask, randomNumber } from "./Caldro_Utility_Functions.js";
 import { CALDGRAY } from "./Caldro_Utility_Constants.js";
 import { Point2D } from "./Caldro_Physics.js";
 import { clip } from "./Caldro_Math.js";
@@ -117,7 +117,7 @@ export function fillColor(color = "skyblue", context = Caldro.rendering.context)
 }
 
 export function hsl(hue, saturation = 100, lightness = 60) {
-	return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+	return `hsl(${hue},${saturation}%,${lightness}%)`;
 }
 
 export function parseColor(color) {
@@ -145,8 +145,8 @@ export function rect(x = 0, y = 0, w = c.width, h = c.height, color = CALDGRAY) 
 export function strect(x, y, w, h, color, lineWidth) {
 	strokeColor(color);
 	Caldro.rendering.context.lineWidth = lineWidth
-	let halftLineWidth = lineWidth*0.5;
-	Caldro.rendering.context.strokeRect(x+halftLineWidth, y+halftLineWidth, w-halftLineWidth, h-halftLineWidth);
+	let halftLineWidth = lineWidth * 0;
+	Caldro.rendering.context.strokeRect(x, y, w - halftLineWidth, h - halftLineWidth);
 }
 
 export function clrect(x, y, w, h) {
@@ -215,11 +215,21 @@ export function line(a, b, c, d, color, lineWidth) {
 	Caldro.rendering.context.stroke();
 }
 
-export function drawVerticiesAsPath(verticies, color, lineWidth){
-	if(verticies.length < 1) return;
+export function lineFromCords(pointA, pointB, color, lineWidth) {
+	Caldro.rendering.context.beginPath();
+	Caldro.rendering.context.moveTo(pointA.x, pointA.y);
+	Caldro.rendering.context.lineTo(pointB.x, pointB.y);
+	Caldro.rendering.context.closePath();
+	strokeColor(color)
+	Caldro.rendering.context.lineWidth = lineWidth
+	Caldro.rendering.context.stroke();
+}
+
+export function drawVerticiesAsPath(verticies, color, lineWidth) {
+	if (verticies.length < 1) return;
 	Caldro.rendering.context.beginPath();
 	Caldro.rendering.context.moveTo(verticies[0].x, verticies[0].y);
-	for(let vertex of verticies){
+	for (let vertex of verticies) {
 		Caldro.rendering.context.lineTo(vertex.x, vertex.y);
 	}
 	Caldro.rendering.context.closePath();
@@ -271,7 +281,7 @@ export function sttxt(text, x, y, font = '30px Arial', fill = 'skyblue', lineWid
 	Caldro.rendering.context.font = font
 	Caldro.rendering.context.textAlign = alignment
 	Caldro.rendering.context.textBaseline = baseLine
-	Caldrp.rendering.context.lineWidth = lineWidth
+	Caldro.rendering.context.lineWidth = lineWidth
 	strokeColor(fill)
 	strokeText(text, x, y, angle)
 }
@@ -318,7 +328,114 @@ export function textOutline(thickness = 0, fillStyle = "black") {
 	Caldro.rendering.textOutlineColor = parseColor(fillStyle)
 }
 
-export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font = "50px Arial", angle = 0, textAlignment = "center", baseline = "middle") {
+export function chopText(text, maxWidth, font, lineHeight) {
+	let ctx = Caldro.rendering.context
+	ctx.save();
+	ctx.font = font
+
+
+	const choppedLines = new Array();
+
+	const words = text.split(" ")
+	let currentLine = "";
+	
+	
+	let maxWordWidth = 0;
+	const measuredText = ctx.measureText(text)
+	let totalTextWidth = measuredText.width 
+	lineHeight = parseFloat(lineHeight ? lineHeight : font)
+	let exactHeight = measuredText.actualBoundingBoxAscent + measuredText.actualBoundingBoxDescent
+	let height = lineHeight
+	
+	
+	let currentLineWidth = 0
+	
+
+	/// add words until exceeds the maxwidth
+	for (let i = 0; i < words.length; ++i) {
+		let word = words[i]
+		const space = ((i < words.length - 1) ? " " : "")
+		let newLine = currentLine + word + space
+
+		let currentWordWidth = ctx.measureText(word).width
+		let newLineWidth = ctx.measureText(newLine).width
+
+		maxWordWidth = Math.max(maxWordWidth, currentWordWidth)
+
+		if (newLineWidth > maxWidth) {
+			choppedLines.push(currentLine)
+			currentLine = word + " "
+			currentLineWidth = ctx.measureText(currentLine).width
+
+			/// if there are still words left to render
+			if (i <= words.length - 1) {
+				height += lineHeight
+			}
+		} else {
+			currentLine = newLine
+			currentLineWidth = newLineWidth
+		}
+	}
+	/// render any remaining text
+	if (currentLine !== "") {
+		choppedLines.push(currentLine)
+	}
+
+	ctx.restore();
+	return { choppedText: choppedLines, height: height, maxWordWidth: maxWordWidth, totalTextWidth: totalTextWidth };
+}
+
+export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font = "50px Arial", angle = 0, textAlignment = "center", baseline = "top") {
+	Caldro.rendering.context.save()
+	Caldro.rendering.context.textAlign = textAlignment
+	Caldro.rendering.context.textBaseline = baseline
+	Caldro.rendering.context.font = font;
+	Caldro.rendering.context.lineWidth = 5
+	// Caldro.rendering.context.lineCap = "round";
+	// Caldro.rendering.context.lineJoin = "round";
+
+	fillColor(color)
+	strokeColor("black")
+
+	const words = text.split(" ")
+	let currentLine = "";
+	let height = lineHeight
+
+	lineHeight = parseFloat(lineHeight ? font : lineHeight)
+
+	/// render each line that exceeds the maxwidth
+	for (let i = 0; i < words.length; ++i) {
+		let word = words[i]
+		let newLine = currentLine + word + ((i < words.length - 1) ? " " : "")
+
+		if (Caldro.rendering.context.measureText(newLine).width > maxWidth) {
+			// rect(x, y, maxWidth, height, "lime")
+			txt(currentLine, x, y, font, color, angle, textAlignment, baseline)
+			currentLine = word + " "
+
+			/// if there are still words left to render
+			if (i <= words.length - 1) {
+				y += lineHeight
+				height += lineHeight
+			}
+		} else {
+			currentLine = newLine
+		}
+	}
+	/// render any remaining text
+	if (currentLine !== "") {
+		// rect(x, y, maxWidth, height, "lime")
+		txt(currentLine, x, y, font, color, angle, textAlignment, baseline)
+	}
+
+
+	Caldro.rendering.context.restore();
+	return { x: x, y: y, width: maxWidth, height: height };
+}
+
+
+
+export function old_wrapText_yikes(text, x, y, maxWidth, lineHeight, color = "green", font = "50px Arial", angle = 0, textAlignment = "center", baseline = "middle") {
 	Caldro.rendering.context.save()
 	Caldro.rendering.context.textAlign = textAlignment
 	Caldro.rendering.context.textBaseline = baseline
@@ -328,10 +445,10 @@ export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font
 	// Caldro.rendering.context.lineJoin = "round";
 
 	if (lineHeight == null) {
-		lineHeight = parseFloat(font) * 1.1
+		lineHeight = parseFloat(font)
 	} else if (typeof lineHeight == "string") {
 		if (lineHeight.includes("auto"))
-			lineHeight = parseFloat(font) * 1.1
+			lineHeight = parseFloat(font)
 	}
 
 	let spaceSplit = text.split(' ')
@@ -339,41 +456,21 @@ export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font
 	// doTask("hmmmm", 
 	// ()=>{console.log(spaceSplit)})
 
-	let lastWordWasSpace = false
-	let savedIndex = 0;
 	for (let i = 0; i < spaceSplit.length; ++i) {
 		let unCutWord = spaceSplit[i]
 		let cutWords = unCutWord.split('\n');
 		for (let j = 0; j < cutWords.length; ++j) {
 			let word = cutWords[j];
 			if (word != "") {
-				// if (word == ' ') {
-				// if (!lastWordWasSpace) {
-				// savedIndex = j-1
-				// lastWordWasSpace = true
-				// }
-				// words[savedIndex] += word
-				// } else {
-				// if(lastWordWasSpace){
-				// words.push(cutWords[savedIndex])
-				// lastWordWasSpace = false
-				// } else {
 				words.push(word);
-				// }
-				// }
 				if (j != cutWords.length - 1) {
 					words.push(null)
 				}
-
-
 			} else {
 				words.push(null)
 			}
 		}
 	}
-
-	// doTask("hmmmm",
-	// () => { console.log(words) })
 
 	let line = '';
 	let height = lineHeight
@@ -388,15 +485,11 @@ export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font
 			y += lineHeight;
 			height += lineHeight;
 			line = ''
-			/* doTask("sjd", function(){
-				console.log("I did a line break\nfor: "+words[n]+"")
-			}) */
 			continue;
 		}
 		let testLine = line + words[n] + ' ';
 		let metrics = Caldro.rendering.context.measureText(testLine);
 		let testWidth = metrics.width;
-		// width = Math.max(width, testWidth)
 		if (testWidth > maxWidth && n > 0) {
 			fillText(line, x, y, angle);
 			width = Math.max(width, Caldro.rendering.context.measureText(line).width)
@@ -410,12 +503,11 @@ export function wrapText(text, x, y, maxWidth, lineHeight, color = "green", font
 	}
 	fillText(line, x, y, angle);
 
-	// return {x: x, y: y, width: width, height: height};
-	/* alpha(0.4)
-	rect(x- width/2, y-height, width, height, "black")
-	alpha(1) */
+	// rect(x- width/2, y-height, width, height, "black")
 	Caldro.rendering.context.restore();
+	return { x: x, y: y, width: width, height: height };
 }
+
 
 export function edges(w, h, blur, color, canvas = c, camera) {
 	let cn = getCanvasDimensions(canvas)
@@ -460,6 +552,8 @@ export function glow(amount = 10, color = 'white') {
 	if (Caldro.renderer.glow) {
 		Caldro.rendering.context.shadowBlur = amount;
 		Caldro.rendering.context.shadowColor = parseColor(color);
+		Caldro.rendering.context.shadowOffsetX = 0;
+		Caldro.rendering.context.shadowOffsetY = 0;
 	}
 }
 
@@ -617,6 +711,7 @@ export function triangle(x, y, length, color, angle = 0) {
 	fillColor(color);
 	Caldro.rendering.context.fill();
 	Caldro.rendering.context.restore()
+	a = b = c = null;
 }
 
 export function stTriangle(x, y, length, color, angle = 0, lineWidth = 2) {
@@ -638,6 +733,7 @@ export function stTriangle(x, y, length, color, angle = 0, lineWidth = 2) {
 	Caldro.rendering.context.lineWidth = lineWidth
 	Caldro.rendering.context.stroke();
 	Caldro.rendering.context.restore()
+	a = b = c = null
 }
 
 function renderRectBody(body, color) {
@@ -702,7 +798,7 @@ export function drawRegularSidedPolygon(x = 0, y = 0, radius = 1, numberOfVertic
 
 /// ========== CANVAS AND COLOR =================
 export function colorToRGB(color) { }
-export function getColor(x, y, context = Caldro.rendering.context, method2 = false) { }
+export function getColor(x, y, canvas = Caldro.rendering.canvas) { }
 // using a buffer canvas to get the actual color
 {
 	let canv = document.createElement("canvas");
@@ -729,20 +825,6 @@ export function getColor(x, y, context = Caldro.rendering.context, method2 = fal
 			a: src.data[3],
 		}
 	}
-	/* getColor = function(x, y, context = Caldro.rendering.context, method2 = false, canvas = Caldro.rendering.canvas) {
-		if (!method2) {
-			let src = context.getImageData(x, y, 1, 1)
-			return {
-				r: src.data[0],
-				g: src.data[1],
-				b: src.data[2],
-				a: src.data[3],
-			}
-		} else {
-			cont.drawImage(canvas, x, y, 1, 1, 0, 0, 1, 1);
-			return getColor(0, 0, cont)
-		}
-	} */
 }
 
 export function pickRandomColor(r = [0, 255], g = [0, 255], b = [0, 255], a = [0, 1]) {
@@ -768,7 +850,7 @@ export function colorObjectToString(colorObject) {
 
 
 
-export class colorObject {
+export class ColorObject {
 	constructor(r = 123, g = 123, b = 123, a = 1) {
 		if (arguments.length == 1) {
 			let color = colorToRGB(r)
@@ -889,7 +971,7 @@ export const colorUtils = {
 	sumTotal(colorObject) {
 		return colorObject.r + colorObject.g + colorObject.b;
 	},
-	rgbaToHex(rgba){
+	rgbaToHex(rgba) {
 		return `#${rgba.r.toString(16).padStart(2, '0')}${rgba.g.toString(16).padStart(2, '0')}${rgba.b.toString(16).padStart(2, '0')}${rgba.a.toString(16).padStart(2, '0')}`
 	}
 }

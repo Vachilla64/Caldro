@@ -1,6 +1,8 @@
 "use strict" // Genetic_Algorithms
 
-export class geneticInformation {
+
+/// make this a subclass of neuro evolution
+export class GeneticInformation {
     constructor(score, fitness, brain) {
         this.score = score;
         this.fitness = fitness;

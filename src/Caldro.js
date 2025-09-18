@@ -1,5 +1,5 @@
 // Caldro
-import { keyStateHandler, Pointer } from "./Caldro_Controls.js";
+import { keyboard, Pointer } from "./Caldro_Controls.js";
 import { CALDBLUE, CURSOR_TYPES, INFINITY, NULLFUNCTION } from "./Caldro_Utility_Constants.js";
 import { c } from "./Caldro_Canvas.js";
 import {
@@ -7,27 +7,17 @@ import {
 	glow,
 	font,
 	txt,
-	adjustCanvas,
-	cc,
 	alpha,
 } from "./Caldro_Rendering.js";
-import { doTask, place, randomNumber, timeTask } from "./Caldro_Utility_Functions.js";
+import { place, randomNumber, timeTask } from "./Caldro_Utility_Functions.js";
 import { arraySum } from "./Caldro_Utility_Functions.js";
 import { init_controls } from "./Caldro_Controls.js";
 import { getConstructorName } from "./Caldro_Utility_Functions.js";
-import { spriteSheetManager } from "./Caldro_Image.js";
-import { canvasImageManager } from "./Caldro_Image_Canvas_Manager.js";
-import { imageHandler } from "./Caldro_Image.js";
 import { DEBUGGER } from "./debug/Caldro_Debug.js";
-/* var CaldroCam = new camera();
-var CaldroPs = new particleSystem();
-var CaldroKeys = new keyStateHandler(); */
-// let c = getCanvas();
+import { cordShow } from "./Caldro_Renderers.js";
+import { SceneManager } from "./Caldro_Scene.js";
+import { UI_System } from "./ui/Caldro_UI.js";
 
-export const CaldroSSM = new spriteSheetManager();
-export const CaldroCIM = new canvasImageManager();
-export const CaldroIH = new imageHandler();
-export const CaldroKeys = new keyStateHandler();
 
 
 
@@ -129,10 +119,8 @@ const Caldro = {
 			return this.logIssues
 		},
 		// currentCamera: CaldroCam,
-		// currentKeyStateHandler: CaldroKeys,
 		// currentParticleSystem: CaldroPs,
 		// currentCamera: CaldroCam,
-		// currentKeyStateHandler: CaldroKeys,
 		// currentParticleSystem: CaldroPs,
 	},
 
@@ -172,6 +160,7 @@ const Caldro = {
 	},
 
 	events: {
+		// currentKeyStateHandler: null,
 		handledEvents: {
 			touchStart: true,
 			touchMove: true,
@@ -256,7 +245,6 @@ const Caldro = {
 			const changedTouches = event.changedTouches;
 			let pointer;
 			if (event.changedTouches) {
-				pointer = this.pointers[changedTouches[0].identifier]
 				if (type == "start") {
 					for (let i = 0; i < changedTouches.length; i++) {
 						const touch = changedTouches[i];
@@ -265,9 +253,10 @@ const Caldro = {
 							y: touch.pageY,
 							ID: touch.identifier
 						};
-						place(pointer, point)
 						this.pointerAdjustment(point)
 						this.pointers[touch.identifier] = point
+						pointer = this.pointers[changedTouches[0].identifier]
+						place(pointer, point)
 					}
 				} else if (type == "move") {
 					for (let i = 0; i < changedTouches.length; i++) {
@@ -277,6 +266,7 @@ const Caldro = {
 							point.x = touch.pageX;
 							point.y = touch.pageY;
 						}
+						pointer = this.pointers[changedTouches[0].identifier]
 						place(pointer, point)
 						this.pointerAdjustment(point)
 					}
@@ -394,7 +384,7 @@ const Caldro = {
 	},
 
 	setKeyStateHandler: function (KEYSTATEHANDLER) {
-		this.info.currentKeyStateHandler = KEYSTATEHANDLER
+		this.events.currentKeyStateHandler = KEYSTATEHANDLER
 	},
 
 	reportError: function (errorDescription, errorSource, caldroCausedError = false) {
@@ -470,13 +460,11 @@ const Caldro = {
 		},
 		KILL() {
 			this.running = false
+			// this.UPDATE = this.FIXEDUPDATE = function () { }
 		},
 	}
 }
 
-window.addEventListener("error", () => {
-	Caldro.engine.KILL();
-})
 
 export const Time = {
 	deltatime: 0,
@@ -495,64 +483,77 @@ export const Time = {
 }
 
 const INFINITE_UPDATE_LOOP = function () {
-	window.requestAnimationFrame(INFINITE_UPDATE_LOOP);
+		/// update keybord tracker
+		// Caldro.events.currentKeyStateHandler?.updateKeys();
+		keyboard._executeHeldKeysCallback()
 
-	/// update keybord tracker
-	CaldroKeys.updateKeys();
+		Caldro.engine.PRELOOP();
 
-	Caldro.engine.PRELOOP();
+		let updateTime = 0;
+		let fixedUpdateTime = 0;
 
-	let updateTime = 0;
-	let fixedUpdateTime = 0;
+		/// update the Time object Here
+		let now = window.performance.now() * 0.001 /// getting current time but converting to MS before hand
+		Time.deltatime = now - Time.previousFrame
+		Time.previousFrame = now;
 
-	/// update the Time object Here
-	let now = window.performance.now() * 0.001 /// getting current time but converting to MS before hand
-	Time.deltatime = now - Time.previousFrame
-	Time.previousFrame = now;
+		Time.elapsedTime += Time.deltatime
+		Time._lagTime += Time.deltatime
 
-	Time.elapsedTime += Time.deltatime
-	Time._lagTime += Time.deltatime
+		/// update Caldro time
+		if (Caldro.time.update()) {
+			if (Caldro.engine.running) {
 
-	/// update Caldro time
-	if (Caldro.time.update()) {
-		if (Caldro.engine.running) {
-			/// run frame update and check time
-			updateTime = timeTask(() => {
-				if (!Caldro.engine.paused) {
-					Caldro.engine.UPDATE();
+				/// run frame update and check time
+				updateTime = timeTask(() => {
+					if (!Caldro.engine.paused) {
+						SceneManager.update(Time.deltatime)
+						Caldro.engine.UPDATE(Time.deltatime);
 
 
-			/// run fixd update and check time
-			fixedUpdateTime = timeTask(() => {
-						let loops = 0
-						while (Time._lagTime >= Time.fixedTime) {
-							if (loops > Time._maxFixedTimeLoops) break;
-							if (Caldro.engine.running) {
-								if (!Caldro.engine.paused)
-									Caldro.engine.FIXEDUPDATE(Time.fixedTime);
+						/// run fixd update and check time
+						fixedUpdateTime = timeTask(() => {
+							let loops = 0
+							while (Time._lagTime >= Time.fixedTime) {
+								if (loops > Time._maxFixedTimeLoops) break;
+								if (Caldro.engine.running) {
+									if (!Caldro.engine.paused)
+										Caldro.engine.FIXEDUPDATE(Time.fixedTime);
+								}
+								Time._lagTime -= Time.fixedTime
+								loops++
 							}
-							Time._lagTime -= Time.fixedTime
-							loops++
-						}
-						Time._lagTime = 0
-					})
-				}
-			})
-			/// heave task simulation
-			// for(let i = 0; i < Math.round(Caldro.time.elapsedTime)*100000; ++i){
-			// 	Math.sin(Math.cos(Math.sqrt(Math.random())))
-			// }
+							Time._lagTime = 0
+						})
+					}
+
+					UI_System.update();
+				})
+				/// heave task simulation
+				// for(let i = 0; i < Math.round(Caldro.time.elapsedTime)*100000; ++i){
+				// 	Math.sin(Math.cos(Math.sqrt(Math.random())))
+				// }
+			}
 		}
-	}
-	let renderTime = timeTask(() => {
-		Caldro.engine.RENDER();
-	})
-	if (Caldro.engine.paused) {
-		alpha(0.2)
-		rect(0, 0, c.width, c.height, "white")
-		alpha(1)
-	}
-	DEBUGGER.UPDATE(updateTime + fixedUpdateTime, renderTime)
+
+		////  preform all rendering tasks here
+		let renderTime = timeTask(() => {
+			Caldro.engine.RENDER();
+			SceneManager.preRender();
+			
+			SceneManager.render()
+			SceneManager.postRender()
+
+			UI_System.render();
+		})
+		if (Caldro.engine.paused) {
+			alpha(0.2)
+			rect(0, 0, c.width, c.height, "white")
+			alpha(1)
+		}
+
+		DEBUGGER.UPDATE(updateTime + fixedUpdateTime, renderTime)
+		window.requestAnimationFrame(INFINITE_UPDATE_LOOP);
 }
 
 let startedLoop = false
@@ -563,8 +564,11 @@ const START_INFINITE_LOOPS = function () {
 		Time.init();
 		INFINITE_UPDATE_LOOP()
 		startedLoop = true
-	} catch {
-		console.error("Could not start loops for some reason")
+	} catch (error){
+		console.warn("Could not start INFINITE GAME LOOP")
+		// console.log(error)
+		console.error(error)
+		console.warn("Yikes")
 	}
 }
 
@@ -572,10 +576,16 @@ try {
 	onCaldroLoad();
 } catch { }
 
-window.addEventListener("error", () => {
+window.addEventListener("error", (event) => {
+	return
+	// event.preventDefault();
 	Caldro.engine.KILL();
 	Caldro.screen.setCursorType(CURSOR_TYPES.DEFAULT)
-	console.warn("Killed the Engine to prevent infinite error messages")
+	console.warn("Killed the Engine Due to Fatal Error")
+	// console.error(event.error)
+
+	/// we coudl learn more about erros and handle them customly but for now we move
+	// console.log(event)
 })
 
 export default Caldro

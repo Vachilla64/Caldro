@@ -34,6 +34,7 @@ export function doTask(id, what = function () { }, onlyIf = true, maxCallCount =
 				let time = window.performance.now();
 				let task = doings.tasks[id];
 				if (task.frequencyInMS) {
+					task.frequencyInMS = frequencyInMS
 					if ((time - task.timeOFLastCall) < task.frequencyInMS) {
 						return;
 					}

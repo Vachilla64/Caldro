@@ -1,17 +1,33 @@
 // Classic_Physics master
-import { vec2D, vector2D } from "./Caldro_Vectors_and_Matrices.js";
+import { vec2D } from "./Caldro_Vectors_and_Matrices.js";
 import { clip, radToDeg, degToRad } from "./Caldro_Math.js";
 import { INFINITY } from "./Caldro_Utility_Constants.js";
-import { dist2D, doTask, generateRandomId } from "./Caldro_Utility_Functions.js";
-import { vecMath } from "./Caldro_Vectors_and_Matrices.js";
+import { dist2D, generateRandomId } from "./Caldro_Utility_Functions.js";
+import { VecMath } from "./Caldro_Vectors_and_Matrices.js";
 import Caldro from "./Caldro.js";
 import { alpha, drawPolypon, drawLine, circle, line, rect, strect, txt, font, drawRay, stCircle, Rect, stDrawPolypon, cc, fillColor } from "./Caldro_Rendering.js";
 import { angleBetweenPoints } from "./Caldro_Physics_Utilities.js";
 import { keyboard } from "./Caldro_Controls.js";
 import { RigidBody } from "./physics/Caldro_RigidBody.js";
+import { CollisionManifold, Collisions } from "./physics/Caldro_Collisions.js";
+import { EventManager } from "./Caldro_EventManager.js";
+import { ScriptManager } from "./entitiy/Caldro_ScriptMangeer.js";
 
+function removeBodiesFromWorld(world) {
+    world.bodies = world.bodies.filter((body) => {
+        if (body.toBeRemoved) {
+            ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "onRemove", (behaviour) => {
+                behaviour.onRemove(body);
+            })
+            world.collisionTracking.deleteBodyTrackers(body)
+            world.onRemoveBody(body)
+            return false
+        }
+        return true
+    })
+}
 
-export class classicPhysicsWorld {
+export class ClassicPhysicsWorld {
     static minBodySize = 0.01 * 0.01;
     static maxBodySize = 640 * 640;
     // grams per cm cube
@@ -26,9 +42,9 @@ export class classicPhysicsWorld {
     // equal to 1/20 a millimeter
     static negligibleDistance = 0.00005
     static shapeType = {
-        circle: 0,
-        box: 1,
-        polygon: 2
+        circle: "circle",
+        box: "box",
+        polygon: "polygon"
     }
 
     static contactPair(index1, index2) {
@@ -44,13 +60,15 @@ export class classicPhysicsWorld {
         this.bodies = new Array();
         this.joints = new Array();
         this.epochsPerStep = 1;
+        this.eventManager = new EventManager("Physics_World_EventManager")
+
         // this.collisionManifolds = new Array();
         this.contactPairs = new Array();
         this.contactPointsList = new Array();
-        this.contactPointsList.__proto__.addContactPoint = (point) => {
-            if (!this.contactPointsList.includes(point)) {
-                this.contactPointsList.push(point)
-            }
+        this.addContactPoint = (point) => {
+            this.contactPointsList.push(point)
+            // if (!this.contactPointsList.includes(point)) {
+            // }
         }
 
         this.simulateUniversalGravity = false
@@ -149,6 +167,7 @@ export class classicPhysicsWorld {
         return this.bodies.includes(body);
     }
     onAddBody(body) { }
+    onRemoveBody(body) { }
     addBody(body) {
         if (!body) {
             console.error("Body argument passed is not a classicPhysicsBody", "\nBody passed argument that passed: ", body)
@@ -158,19 +177,32 @@ export class classicPhysicsWorld {
             console.error("Physics Engine Error: Cannot add a body to a world if that world already contains that body")
             return false;
         }
+
+        // body.onAdd(this); body.event
+        ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "onAdd", (behaviour) => {
+            behaviour.onAdd(body);
+        })
+
         this.bodies.push(body)
         this.onAddBody(body)
-        body.onAdd(this);
+
         return body;
     }
     addJoint(joint) {
         this.joints.push(joint);
     }
-    removeAllBodies(fireOnRemoveEvents = false) {
+    removeAllBodies(fireOnRemoveEvents = true) {
         if (fireOnRemoveEvents) {
             for (let i = this.bodies.length - 1; i > -1; --i) {
-                this.bodies[i].onRemove();
+                let body = this.bodies[i]
                 this.bodies.splice(i, 1)
+
+                // this.bodies[i].onRemove(); body.event
+                ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "onRemove", (behaviour) => {
+                    behaviour.onRemove(body);
+                })
+                this.collisionTracking.deleteBodyTrackers(body)
+                this.onRemoveBody(body)
             }
             return
         }
@@ -179,30 +211,41 @@ export class classicPhysicsWorld {
     removeBody(body) {
         let found = false
         let physicsWorld = this
+
+        /// wow, a bug in here where I was refering to   \/    as body, but shoulds hvae been object
         if (typeof body == "function") {
             this.bodies = this.bodies.filter(function (object) {
                 if (!body(object)) {
                     return true
                 }
                 found = true
-                physicsWorld.collisionTracking.deleteBodyTrackers(body)
-                object.onRemove();
+                // object.onRemove(); body.event
+                ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "onRemove", (behaviour) => {
+                    behaviour.onRemove(object);
+                })
+                physicsWorld.collisionTracking.deleteBodyTrackers(object)
+                this.onRemoveBody(object)
                 return false;
             })
-        }
-        if (typeof body == "number") {
-            body = this.bodies[body]
-            if (!body) {
-                return false
+        } else
+            /// if by index then we get the correct body to be removed below
+            if (typeof body == "number") {
+                body = this.bodies[body]
+                if (!body) {
+                    return false
+                }
             }
-        }
         this.bodies = this.bodies.filter(function (object) {
             if (object != body) {
                 return true
             }
             found = true
-            physicsWorld.collisionTracking.deleteBodyTrackers(body)
-            object.onRemove();
+            // object.onRemove(); body.event
+            ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "onRemove", (behaviour) => {
+                behaviour.onRemove(object);
+            })
+            physicsWorld.collisionTracking.deleteBodyTrackers(object)
+            this.onRemoveBody(object)
             return false;
         })
         return found
@@ -212,22 +255,17 @@ export class classicPhysicsWorld {
         let found = false
         let physicsWorld = this
         this.bodies = this.bodies.filter(function (body) {
-            if (strict) {
-                if (body.tag === tag) {
-                    found = true;
-                    physicsWorld.collisionTracking.deleteBodyTrackers(body)
-                    body.onRemove();
-                    return false
-                }
-            } else {
-                if ((body.tag.includes(tag))) {
-                    found = true;
-                    physicsWorld.collisionTracking.deleteBodyTrackers(body)
-                    body.onRemove();
-                    return false
-                }
+            if (strict ? (body.tag.includes(tag)) : (body.tags.includes(tag))) {
+                // if (strict ? (body.tag === tag) : (body.tags.includes(tag))) {
+                found = true;
+                // body.onRemove(); body.event
+                ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "onRemove", (behaviour) => {
+                    behaviour.onRemove(body);
+                })
+                physicsWorld.collisionTracking.deleteBodyTrackers(body)
+                this.onRemoveBody(body)
+                return false
             }
-
             return true;
         })
         return found
@@ -240,13 +278,13 @@ export class classicPhysicsWorld {
         let bodies = new Array();
         if (!strict) {
             for (let body of this.bodies) {
-                if (body.tag.includes(tag)) {
+                if (body.tags.includes(tag)) {
                     bodies.push(body)
                 }
             }
         } else {
             for (let body of this.bodies) {
-                if (body.tag == tag) {
+                if (body.tags.includes(tag)) {
                     bodies.push(body)
                 }
             }
@@ -256,7 +294,7 @@ export class classicPhysicsWorld {
     getBodiesInAABB(AABB) {
         let collidingBodies = [];
         for (let body of this.bodies) {
-            if (Collisions.intersectAANN(AABB, body.getAABB())) {
+            if (Collisions.intersectAANN(AABB, RigidBody.getAABB(body))) {
                 collidingBodies.push(body)
             }
         }
@@ -269,10 +307,10 @@ export class classicPhysicsWorld {
         let collidingBodies = [];
         for (let body of this.bodies) {
             let collision = false;
-            if (body.shapeType == classicPhysicsWorld.shapeType.circle) {
-                collision = Collisions.intersectCircles(point, classicPhysicsWorld.negligibleDistance, body.position, body.radius)
+            if (body.shapeType == ClassicPhysicsWorld.shapeType.circle) {
+                collision = Collisions.intersectCircles(point, ClassicPhysicsWorld.negligibleDistance, body.position, body.radius)
             } else {
-                collision = Collisions.intersectCirclePolygon(point, classicPhysicsWorld.negligibleDistance, body.getTransformedVerticies())
+                collision = Collisions.intersectCirclePolygon(point, ClassicPhysicsWorld.negligibleDistance, RigidBody.getTransformedVerticies(body))
             }
             if (collision) {
                 collidingBodies.push(body);
@@ -299,8 +337,8 @@ export class classicPhysicsWorld {
         this.isPaused = false
     }
     test(deltatime = randomNumber(0.01, 0.03), epochs = 100) {
-        let world = new classicPhysicsWorld();
-        let physics = new classicPhysics();
+        let world = new ClassicPhysicsWorld();
+        let physics = new ClassicPhysics();
         let test = physics.createCircleBody(new vec2D(0, 0), 1, 1, 1, false);
         world.addBody(test)
         world.step(deltatime, epochs);
@@ -312,10 +350,11 @@ export class classicPhysicsWorld {
     }
 
     step(deltatime, iterations = 1) {
+        // console.log("hiehaoe")
         if (this.isPaused) return;
         for (let epochCount = 0; epochCount < this.epochsPerStep; ++epochCount) {
 
-            iterations = clip(iterations, classicPhysicsWorld.minIterations, classicPhysicsWorld.maxIterations)
+            iterations = clip(iterations, ClassicPhysicsWorld.minIterations, ClassicPhysicsWorld.maxIterations)
             deltatime /= iterations;
             deltatime *= this.time.speedMultiplier;
 
@@ -327,6 +366,10 @@ export class classicPhysicsWorld {
             for (let substep = 0; substep < iterations; ++substep) {
                 this.contactPairs.length = 0;
                 this.contactPointsList.length = 0;
+
+                /// remove all bodies taged to be deleteed
+                removeBodiesFromWorld(this)
+
                 this.stepBodies(deltatime, substep, iterations);
                 this.stepJoints(deltatime)
                 this.BroadPhase(deltatime, substep, iterations);
@@ -340,8 +383,15 @@ export class classicPhysicsWorld {
                         tracker.inCollision = false
                         let bodyA = tracker.bodyA;
                         let bodyB = tracker.bodyB;
-                        bodyA.onCollisionEnd(bodyB, tracker.manifoldA)
-                        bodyB.onCollisionEnd(bodyA, tracker.manifoldB)
+
+                        // bodyA.onCollisionEnd(bodyB, tracker.manifoldA) body.event
+                        ScriptManager.forEachEntityScriptWithMethod(bodyA.behaviours, "onCollisionEnd", (behaviourA) => {
+                            behaviourA.onCollisionEnd(bodyA, bodyB, tracker.manifoldA)
+                        })
+                        // bodyB.onCollisionEnd(bodyA, tracker.manifoldB) body.event
+                        ScriptManager.forEachEntityScriptWithMethod(bodyB.behaviours, "onCollisionEnd", (behaviourB) => {
+                            behaviourB.onCollisionEnd(bodyB, bodyA, tracker.manifoldB)
+                        })
                         tracker.isNewCollision = true;
                         tracker.handleEndEvent = false;
                     }
@@ -363,20 +413,34 @@ export class classicPhysicsWorld {
                 if (!(bodyA.collidable && bodyB.collidable)) continue;
 
                 if (this.simulateUniversalGravity && substep == 0) {
-                    let distance = vecMath.distance(bodyA.position, bodyB.position)
-                    let gravityConstant = classicPhysicsWorld.gravitationalConstant
+                    let distance = VecMath.distance(bodyA.position, bodyB.position)
+                    let gravityConstant = ClassicPhysicsWorld.gravitationalConstant
                     let attraction = (gravityConstant * bodyA.mass * bodyB.mass) / distance ** 2;
-                    let direction = vecMath.subtract(bodyA.position, bodyB.position)
-                    let force = vecMath.multiply(direction, attraction)
-                    bodyA.addForce(vecMath.invert(force))
+                    let direction = VecMath.subtract(bodyA.position, bodyB.position)
+                    let force = VecMath.multiply(direction, attraction)
+                    bodyA.addForce(VecMath.invert(force))
                     bodyB.addForce(force)
                 }
 
-                let userInfoA = bodyA.preCollision(bodyB)
-                let userInfoB = bodyB.preCollision(bodyA)
+                let userInfoA, userInfoB;
+                // let userInfoA = bodyA.preCollision(bodyB) body.event
+                ScriptManager.forEachEntityScriptWithMethod(bodyA.behaviours, "preCollision", (behaviourA) => {
+                    userInfoA = userInfoA || behaviourA.preCollision(bodyA, bodyB)
+                })
+                // let userInfoB = bodyB.preCollision(bodyA) body.event
+                ScriptManager.forEachEntityScriptWithMethod(bodyB.behaviours, "preCollision", (behaviourB) => {
+                    userInfoB = userInfoB || behaviourB.preCollision(bodyB, bodyA)
+                })
+                /// these funcitons above can return Collisions.GHOST
+                /// if they do, then we create them as inCollidable for this frame
                 if (userInfoA === Collisions.GHOST || userInfoB === Collisions.GHOST) continue;
-                if (!Collisions.intersectAANN(bodyA.getAABB(), bodyB.getAABB())) continue;
-                this.contactPairs.push(classicPhysicsWorld.contactPair(i, j)) // indexes of bodies to check for possible collision
+
+                if (!Collisions.intersectAANN(
+                    RigidBody.getAABB(bodyA),
+                    RigidBody.getAABB(bodyB)))
+                    continue;
+
+                this.contactPairs.push(ClassicPhysicsWorld.contactPair(i, j)) // indexes of bodies to check for possible collision
                 // this.contactPairs.push([1, j])
             }
 
@@ -411,13 +475,13 @@ export class classicPhysicsWorld {
 
                 let normal = collisionInformation.normal;
                 let depth = collisionInformation.depth;
-                let minimumTranslationVector = vecMath.multiply(normal, depth)
+                let minimumTranslationVector = VecMath.multiply(normal, depth)
 
                 let contactInformation = Collisions.findContactPoints(bodyA, bodyB)
                 let manifoldA = new CollisionManifold(bodyA, bodyB, normal, depth,
                     contactInformation.contactPoint1, contactInformation.contactPoint2,
                     contactInformation.contactPointCount)
-                let manifoldB = new CollisionManifold(bodyB, bodyA, vecMath.invert(normal), depth,
+                let manifoldB = new CollisionManifold(bodyB, bodyA, VecMath.invert(normal), depth,
                     contactInformation.contactPoint2, contactInformation.contactPoint1,
                     contactInformation.contactPointCount)
                 // this.collisionManifolds.push(manifoldA);
@@ -429,25 +493,40 @@ export class classicPhysicsWorld {
                     collisionTracker.inCollision = true;
                     collisionTracker.updated = true;
 
-                    manifoldA.relativeVelocity = vecMath.subtract(bodyA.linearVelocity, bodyB.linearVelocity)
-                    manifoldB.relativeVelocity = vecMath.invert(manifoldA.relativeVelocity)
+                    manifoldA.relativeVelocity = VecMath.subtract(bodyA.linearVelocity, bodyB.linearVelocity)
+                    manifoldB.relativeVelocity = VecMath.invert(manifoldA.relativeVelocity)
 
                     // !===TO DO====! deltatime passed to this funciont is wrong, or at leat will be wrong if the epoch of the world step is greater than 1
                     if (collisionTracker.isNewCollision) {
-                        userInfoA = bodyA.onCollisionStart(bodyB, manifoldA)
-                        userInfoB = bodyB.onCollisionStart(bodyA, manifoldB)
+                        /// collision start behaviours
+                        // userInfoA = bodyA.onCollisionStart(bodyB, manifoldA) body.event
+                        ScriptManager.forEachEntityScriptWithMethod(bodyA.behaviours, "onCollisionStart", (behaviourA) => {
+                            userInfoA = userInfoA || behaviourA.onCollisionStart(bodyA, bodyB, manifoldA)
+                        })
+
+                        // userInfoB = bodyB.onCollisionStart(bodyA, manifoldB) body.event
+                        ScriptManager.forEachEntityScriptWithMethod(bodyB.behaviours, "onCollisionStart", (behaviourB) => {
+                            userInfoB = userInfoB || behaviourB.onCollisionStart(bodyB, bodyA, manifoldB)
+                        })
                         collisionTracker.isNewCollision = false;
                     } else {
-                        userInfoA = bodyA.onCollisionContinue(bodyB, manifoldA)
-                        userInfoB = bodyB.onCollisionContinue(bodyA, manifoldB)
+                        /// collision continue behaviours
+                        // userInfoA = bodyA.onCollisionContinue(bodyB, manifoldA) body.event
+                        ScriptManager.forEachEntityScriptWithMethod(bodyA.behaviours, "onCollisionContinue", (behaviourA) => {
+                            userInfoA = userInfoA || behaviourA.onCollisionStart(bodyA, bodyB, manifoldA)
+                        })
+                        // userInfoB = bodyB.onCollisionContinue(bodyA, manifoldB) body.event
+                        ScriptManager.forEachEntityScriptWithMethod(bodyB.behaviours, "onCollisionContinue", (behaviourB) => {
+                            userInfoB = userInfoB || behaviourB.onCollisionStart(bodyB, bodyA, manifoldB)
+                        })
                     }
                     collisionTracker.handleStart_ContinueEvent = false //tihs only exsists to make either event happen once per world stepp, dw about it
                     collisionTracker.handleEndEvent = true;
                 }
 
-                this.contactPointsList.addContactPoint(manifoldA.contactPoint1)
+                this.addContactPoint(manifoldA.contactPoint1)
                 if (manifoldA.contactPointCount > 1) {
-                    this.contactPointsList.addContactPoint(manifoldA.contactPoint2)
+                    this.addContactPoint(manifoldA.contactPoint2)
                 }
 
 
@@ -476,8 +555,22 @@ export class classicPhysicsWorld {
     stepBodies(deltatime, substep, iterations) {
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
+            if (body.toBeRemoved) {
+                console.warn("I am not meant ot be here")
+            }
+
+            /// pre update behaviour 
+            ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "beforePhysicsUpdate", (behaviour) => {
+                behaviour.beforePhysicsUpdate(body, deltatime);
+            })
             body.inCollision = false
+
             RigidBody.step(body, deltatime, this.gravity, substep === (iterations - 1))
+
+            /// post update behaviour 
+            ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "onPhysicsUpdate", (behaviour) => {
+                behaviour.onPhysicsUpdate(body, deltatime);
+            })
             // body.step(deltatime, this.gravity, substep == (iterations - 1))
             // body.step(deltatime, this.gravity, substep == (iterations - 1))
             // body.applyFriction(body.staticFriction, deltatime)
@@ -492,12 +585,12 @@ export class classicPhysicsWorld {
 
     seperateBodies(bodyA, bodyB, minimumTranslationVector) {
         if (bodyA.isStatic) {
-            bodyB.move(minimumTranslationVector)
+            RigidBody.move(bodyB, minimumTranslationVector)
         } else if (bodyB.isStatic) {
-            bodyA.move(vecMath.invert(minimumTranslationVector))
+            RigidBody.move(bodyA, VecMath.invert(minimumTranslationVector))
         } else {
-            bodyA.move(vecMath.multiply(vecMath.invert(minimumTranslationVector), 0.5))
-            bodyB.move(vecMath.multiply(minimumTranslationVector, 0.5))
+            RigidBody.move(bodyA, VecMath.multiply(VecMath.invert(minimumTranslationVector), 0.5))
+            RigidBody.move(bodyB, VecMath.multiply(minimumTranslationVector, 0.5))
         }
     }
 
@@ -505,24 +598,24 @@ export class classicPhysicsWorld {
     resolveCollisionBasic(manifold) {
         let { bodyA, bodyB, normal, depth } = manifold;
 
-        let relativeVelocity = vecMath.subtract(bodyB.linearVelocity, bodyA.linearVelocity);
+        let relativeVelocity = VecMath.subtract(bodyB.linearVelocity, bodyA.linearVelocity);
 
-        if (vecMath.dot(relativeVelocity, normal) > 0) {
+        if (VecMath.dot(relativeVelocity, normal) > 0) {
             return;
         }
 
         let e = Math.min(bodyA.restitution, bodyB.restitution);
-        let j = -(1 + e) * vecMath.dot(relativeVelocity, normal);
+        let j = -(1 + e) * VecMath.dot(relativeVelocity, normal);
         j /= ((bodyA.invMass + bodyB.invMass) || 1);
 
-        let impulse = vecMath.multiply(normal, j)
-        // let inpulse = vecMath.multiply(normal, j+0.1)
+        let impulse = VecMath.multiply(normal, j)
+        // let inpulse = VecMath.multiply(normal, j+0.1)
 
         if (!bodyA.isStatic) {
-            bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, vecMath.multiply(vecMath.invert(impulse), bodyA.invMass))
+            bodyA.linearVelocity = VecMath.add(bodyA.linearVelocity, VecMath.multiply(VecMath.invert(impulse), bodyA.invMass))
         }
         if (!bodyB.isStatic) {
-            bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, vecMath.multiply(impulse, bodyB.invMass))
+            bodyB.linearVelocity = VecMath.add(bodyB.linearVelocity, VecMath.multiply(impulse, bodyB.invMass))
         }
     }
 
@@ -542,33 +635,33 @@ export class classicPhysicsWorld {
         rbList.length = 0;
 
         for (let i = 0; i < contactPointCount; ++i) {
-            let ra = vecMath.subtract(contactPointList[i], bodyA.position)
-            let rb = vecMath.subtract(contactPointList[i], bodyB.position)
+            let ra = VecMath.subtract(contactPointList[i], bodyA.position)
+            let rb = VecMath.subtract(contactPointList[i], bodyB.position)
 
             raList[i] = ra
             rbList[i] = rb
 
-            let raPerp = vecMath.normal(ra)
-            let rbPerp = vecMath.normal(rb)
+            let raPerp = VecMath.normal(ra)
+            let rbPerp = VecMath.normal(rb)
 
             let angularVelocityRadiansA = degToRad(bodyA.angularVelocity)
             let angularVelocityRadiansB = degToRad(bodyB.angularVelocity)
 
-            let angularLinearVelocityA = vecMath.multiply(raPerp, angularVelocityRadiansA)
-            let angularLinearVelocityB = vecMath.multiply(rbPerp, angularVelocityRadiansB)
+            let angularLinearVelocityA = VecMath.multiply(raPerp, angularVelocityRadiansA)
+            let angularLinearVelocityB = VecMath.multiply(rbPerp, angularVelocityRadiansB)
 
-            let relativeVelocity = vecMath.subtract(
-                vecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
-                vecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
+            let relativeVelocity = VecMath.subtract(
+                VecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
+                VecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
 
 
-            let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
+            let contactVelocityMagnitude = VecMath.dot(relativeVelocity, normal)
             if (contactVelocityMagnitude > 0) {
                 continue;
             }
 
-            let raPerpDotNormal = vecMath.dot(raPerp, normal)
-            let rbPerpDotNormal = vecMath.dot(rbPerp, normal)
+            let raPerpDotNormal = VecMath.dot(raPerp, normal)
+            let rbPerpDotNormal = VecMath.dot(rbPerp, normal)
 
             let denom = ((bodyA.invMass + bodyB.invMass)) +
                 ((raPerpDotNormal ** 2) * bodyA.invInertia) +
@@ -579,7 +672,7 @@ export class classicPhysicsWorld {
             j /= denom;
             j /= contactPointCount
 
-            let impulse = vecMath.multiply(normal, j)
+            let impulse = VecMath.multiply(normal, j)
             impulseList[i] = impulse
         }
 
@@ -593,16 +686,16 @@ export class classicPhysicsWorld {
             let rb = rbList[i]
 
             if (!bodyA.isStatic) {
-                let force = vecMath.multiply(vecMath.invert(impulse), bodyA.invMass)
+                let force = VecMath.multiply(VecMath.invert(impulse), bodyA.invMass)
                 forceA.add(force)
-                bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, force)
-                bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, impulse) * bodyA.invInertia)
+                bodyA.linearVelocity = VecMath.add(bodyA.linearVelocity, force)
+                bodyA.angularVelocity += radToDeg(-VecMath.croos(ra, impulse) * bodyA.invInertia)
             }
             if (!bodyB.isStatic) {
-                let force = vecMath.multiply(impulse, bodyB.invMass);
+                let force = VecMath.multiply(impulse, bodyB.invMass);
                 forceB.add(force)
-                bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, force)
-                bodyB.angularVelocity += radToDeg(vecMath.croos(rb, impulse) * bodyB.invInertia)
+                bodyB.linearVelocity = VecMath.add(bodyB.linearVelocity, force)
+                bodyB.angularVelocity += radToDeg(VecMath.croos(rb, impulse) * bodyB.invInertia)
             }
         }
 
@@ -631,34 +724,34 @@ export class classicPhysicsWorld {
 
         // collision impulses
         for (let i = 0; i < contactPointCount; ++i) {
-            let ra = vecMath.subtract(contactPointList[i], bodyA.position)
-            let rb = vecMath.subtract(contactPointList[i], bodyB.position)
+            let ra = VecMath.subtract(contactPointList[i], bodyA.position)
+            let rb = VecMath.subtract(contactPointList[i], bodyB.position)
 
             raList[i] = ra
             rbList[i] = rb
 
-            let raPerp = vecMath.normal(ra)
-            let rbPerp = vecMath.normal(rb)
+            let raPerp = VecMath.normal(ra)
+            let rbPerp = VecMath.normal(rb)
 
             let angularVelocityRadiansA = degToRad(bodyA.angularVelocity)
             let angularVelocityRadiansB = degToRad(bodyB.angularVelocity)
 
-            let angularLinearVelocityA = vecMath.multiply(raPerp, angularVelocityRadiansA)
-            let angularLinearVelocityB = vecMath.multiply(rbPerp, angularVelocityRadiansB)
+            let angularLinearVelocityA = VecMath.multiply(raPerp, angularVelocityRadiansA)
+            let angularLinearVelocityB = VecMath.multiply(rbPerp, angularVelocityRadiansB)
 
-            let relativeVelocity = vecMath.subtract(
-                vecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
-                vecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
+            let relativeVelocity = VecMath.subtract(
+                VecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
+                VecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
 
 
-            let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
+            let contactVelocityMagnitude = VecMath.dot(relativeVelocity, normal)
             if (contactVelocityMagnitude > 0) {
                 JList[i] = 0
                 continue;
             }
 
-            let raPerpDotNormal = vecMath.dot(raPerp, normal)
-            let rbPerpDotNormal = vecMath.dot(rbPerp, normal)
+            let raPerpDotNormal = VecMath.dot(raPerp, normal)
+            let rbPerpDotNormal = VecMath.dot(rbPerp, normal)
 
             let denom = ((bodyA.invMass + bodyB.invMass)) +
                 ((raPerpDotNormal ** 2) * bodyA.invInertia) +
@@ -671,7 +764,7 @@ export class classicPhysicsWorld {
 
             JList[i] = j;
 
-            let impulse = vecMath.multiply(normal, j)
+            let impulse = VecMath.multiply(normal, j)
             impulseList[i] = impulse
         }
 
@@ -685,62 +778,62 @@ export class classicPhysicsWorld {
             let rb = rbList[i]
 
             if (!bodyA.isStatic) {
-                let force = vecMath.multiply(vecMath.invert(impulse), bodyA.invMass)
+                let force = VecMath.multiply(VecMath.invert(impulse), bodyA.invMass)
                 // forceA.add(force)
-                vecMath.add(forceA, force, true)
-                bodyA.linearVelocity = vecMath.add(bodyA.linearVelocity, force)
-                bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, impulse) * bodyA.invInertia)
+                VecMath.add(forceA, force, true)
+                bodyA.linearVelocity = VecMath.add(bodyA.linearVelocity, force)
+                bodyA.angularVelocity += radToDeg(-VecMath.croos(ra, impulse) * bodyA.invInertia)
             }
             if (!bodyB.isStatic) {
-                let force = vecMath.multiply(impulse, bodyB.invMass);
+                let force = VecMath.multiply(impulse, bodyB.invMass);
                 // forceB.add(force)
-                vecMath.add(forceB, force, true)
-                bodyB.linearVelocity = vecMath.add(bodyB.linearVelocity, force)
-                bodyB.angularVelocity += radToDeg(vecMath.croos(rb, impulse) * bodyB.invInertia)
+                VecMath.add(forceB, force, true)
+                bodyB.linearVelocity = VecMath.add(bodyB.linearVelocity, force)
+                bodyB.angularVelocity += radToDeg(VecMath.croos(rb, impulse) * bodyB.invInertia)
             }
         }
 
         // friction impolses
         for (let i = 0; i < contactPointCount; ++i) {
-            let ra = vecMath.subtract(contactPointList[i], bodyA.position)
-            let rb = vecMath.subtract(contactPointList[i], bodyB.position)
+            let ra = VecMath.subtract(contactPointList[i], bodyA.position)
+            let rb = VecMath.subtract(contactPointList[i], bodyB.position)
 
             raList[i] = ra
             rbList[i] = rb
 
-            let raPerp = vecMath.normal(ra)
-            let rbPerp = vecMath.normal(rb)
+            let raPerp = VecMath.normal(ra)
+            let rbPerp = VecMath.normal(rb)
 
             let angularVelocityRadiansA = degToRad(bodyA.angularVelocity)
             let angularVelocityRadiansB = degToRad(bodyB.angularVelocity)
 
-            let angularLinearVelocityA = vecMath.multiply(raPerp, angularVelocityRadiansA)
-            let angularLinearVelocityB = vecMath.multiply(rbPerp, angularVelocityRadiansB)
+            let angularLinearVelocityA = VecMath.multiply(raPerp, angularVelocityRadiansA)
+            let angularLinearVelocityB = VecMath.multiply(rbPerp, angularVelocityRadiansB)
 
-            let relativeVelocity = vecMath.subtract(
-                vecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
-                vecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
+            let relativeVelocity = VecMath.subtract(
+                VecMath.add(bodyB.linearVelocity, angularLinearVelocityB),
+                VecMath.add(bodyA.linearVelocity, angularLinearVelocityA));
 
-            let tangent = vecMath.subtract(relativeVelocity, vecMath.multiply(normal, vecMath.dot(relativeVelocity, normal)))
+            let tangent = VecMath.subtract(relativeVelocity, VecMath.multiply(normal, VecMath.dot(relativeVelocity, normal)))
             if (Collisions.nearlyEqual(tangent.x, 0) && Collisions.nearlyEqual(tangent.y, 0)) {
                 continue
             } else {
-                vecMath.normalize(tangent, true)
+                VecMath.normalize(tangent, true)
                 // tangent.normalize();
             }
-            /* let contactVelocityMagnitude = vecMath.dot(relativeVelocity, normal)
+            /* let contactVelocityMagnitude = VecMath.dot(relativeVelocity, normal)
             if (contactVelocityMagnitude > 0) {
                 continue;
             } */
 
-            let raPerpDotTangent = vecMath.dot(raPerp, tangent)
-            let rbPerpDotTangent = vecMath.dot(rbPerp, tangent)
+            let raPerpDotTangent = VecMath.dot(raPerp, tangent)
+            let rbPerpDotTangent = VecMath.dot(rbPerp, tangent)
 
             let denom = ((bodyA.invMass + bodyB.invMass)) +
                 ((raPerpDotTangent ** 2) * bodyA.invInertia) +
                 ((rbPerpDotTangent ** 2) * bodyB.invInertia);
 
-            let contactVelocityMagnitude = vecMath.dot(relativeVelocity, tangent)
+            let contactVelocityMagnitude = VecMath.dot(relativeVelocity, tangent)
             let jtangent = -1 * contactVelocityMagnitude;
             jtangent /= denom;
             jtangent /= contactPointCount
@@ -751,9 +844,9 @@ export class classicPhysicsWorld {
             //  console.log(j, JList, i)
             // respection Columbs law
             if (Math.abs(jtangent) <= j * sFc) {
-                frictionImpulse = vecMath.multiply(tangent, jtangent)
+                frictionImpulse = VecMath.multiply(tangent, jtangent)
             } else {
-                frictionImpulse = vecMath.multiply(tangent, -j * dFc)
+                frictionImpulse = VecMath.multiply(tangent, -j * dFc)
             }
             frictionImpulseList[i] = frictionImpulse
         }
@@ -766,14 +859,14 @@ export class classicPhysicsWorld {
             let rb = rbList[i]
 
             if (!bodyA.isStatic) {
-                let force = vecMath.multiply(vecMath.invert(frictionImpulse), bodyA.invMass)
-                vecMath.add(bodyA.linearVelocity, force, true)
-                bodyA.angularVelocity += radToDeg(-vecMath.croos(ra, frictionImpulse) * bodyA.invInertia)
+                let force = VecMath.multiply(VecMath.invert(frictionImpulse), bodyA.invMass)
+                VecMath.add(bodyA.linearVelocity, force, true)
+                bodyA.angularVelocity += radToDeg(-VecMath.croos(ra, frictionImpulse) * bodyA.invInertia)
             }
             if (!bodyB.isStatic) {
-                let force = vecMath.multiply(frictionImpulse, bodyB.invMass)
-                vecMath.add(bodyB.linearVelocity, force, true)
-                bodyB.angularVelocity += radToDeg(vecMath.croos(rb, frictionImpulse) * bodyB.invInertia)
+                let force = VecMath.multiply(frictionImpulse, bodyB.invMass)
+                VecMath.add(bodyB.linearVelocity, force, true)
+                bodyB.angularVelocity += radToDeg(VecMath.croos(rb, frictionImpulse) * bodyB.invInertia)
             }
         }
 
@@ -785,27 +878,40 @@ export class classicPhysicsWorld {
         if (camera)
             radius *= (1 / camera.zoom.x)
 
+        // doTask("testing", () => {
         for (let i = 0; i < this.bodies.length; ++i) {
             let body = this.bodies[i]
-            classicPhysicsWorld.renderBody(body, renderAABB, camera)
-            // txt(i, body.position.x, body.position.y, font(5), 'white')
-        }
+            let renderdefault = true
+
+                ScriptManager.forEachEntityScriptWithMethod(body.behaviours, "render", (behaviour) => {
+                    let response = behaviour.render(body)
+                    renderdefault = renderdefault && !response
+                    // behaviour.render(body)
+                    // console.log(behaviour, body.behaviours)
+                })
+                if (renderdefault)
+                    ClassicPhysicsWorld.renderBody(body, renderAABB, camera)
+                // txt(i, body.position.x, body.position.y, font(5), 'white')
+            }
+        // }, true, 100)
 
         for (let point of this.contactPointsList) {
             circle(point.x, point.y, radius, "lime")
         }
     }
 
-    renderJoints() {
+    renderJoints(camera) {
         for (let i = 0; i < this.joints.length; ++i) {
             let joint = this.joints[i];
             let point1 = joint.pointA;
             let point2 = joint.pointB;
-            let length = vecMath.distance(point1, point2)
+            let length = VecMath.distance(point1, point2)
 
             let zigs = joint.length % 2 == 0 ? joint.length + 1 : joint.length + 2;
             let size = 0.3
             let width = 0.5
+            if (camera)
+                size *= (1 / camera.zoom.x)
             let x = 0;
 
 
@@ -846,7 +952,8 @@ export class classicPhysicsWorld {
         // body.preRender();
         let color = "gray"
         let lineColour = "white"
-        let lineWidth = 2 * (1 / camera.zoom.x)
+        let lineWidth = 2
+        if (camera) lineWidth *= (1 / camera.zoom.x)
 
         if (body.collidable) {
             color = "orange"
@@ -862,22 +969,24 @@ export class classicPhysicsWorld {
             }
         }
 
+
         if (body.color) color = body.color;
+
         if (!body.drawing) {
-            if (body.shapeType == classicPhysicsWorld.shapeType.circle) {
+            if (body.shapeType == ClassicPhysicsWorld.shapeType.circle) {
                 circle(body.position.x, body.position.y, body.radius, color)
                 drawRay(body.position, body.radius, body.angle, lineColour, lineWidth)
-                stCircle(body.position.x, body.position.y, body.radius, lineColour, lineWidth)
+                // stCircle(body.position.x, body.position.y, body.radius, lineColour, lineWidth)
             } else {
-                drawPolypon(body.getTransformedVerticies(), color)
-                stDrawPolypon(body.getTransformedVerticies(), lineColour, lineWidth)
-                let vertex1 = body.getTransformedVerticies()[0]
+                drawPolypon(RigidBody.getTransformedVerticies(body), color)
+                // stDrawPolypon(RigidBody.getTransformedVerticies(body), lineColour, lineWidth)
+                let vertex1 = RigidBody.getTransformedVerticies(body)[0]
                 drawRay(body.position, dist2D(body.position, vertex1), body.angle + vertex1.angle, lineColour, lineWidth)
                 // line(body.positi/on.x, body.position.y, vertex1.x, vertex1.y, lineColour, lineWidth)
             }
             line(body.position.x, body.position.y, body.position.x + body.linearVelocity.x, body.position.y + body.linearVelocity.y, "lime", lineWidth * 3)
         } else {
-            body.render(body)
+            RigidBody.render(body)
         }
 
 
@@ -894,9 +1003,9 @@ export class classicPhysicsWorld {
                 }
             }
 
-            let lw = 2
+            let lw = 1
             if (camera) { lw *= (1 / camera.zoom.x) }
-            let aabb = body.getAABB();
+            let aabb = RigidBody.getAABB(body);
             alpha(0.2)
             rect(aabb.min.x, aabb.min.y, aabb.max.x - aabb.min.x, aabb.max.y - aabb.min.y, color)
             alpha(1)
@@ -925,528 +1034,17 @@ export class classicPhysicsWorld {
             }
             if (body.isStatic) continue; // not nesseary but lets save the engine some calculations
 
-            let distance = vecMath.distance(origin, body.position);
+            let distance = VecMath.distance(origin, body.position);
             if (distance > radius) continue;
-            let direction = vecMath.subtract(body.position, origin);
-            let force = vecMath.multiply(vecMath.normalize(direction), forceMagnitude * (radius / distance));
-            body.addForce(force);
+            let direction = VecMath.subtract(body.position, origin);
+            let force = VecMath.multiply(VecMath.normalize(direction), forceMagnitude * (radius / distance));
+            RigidBody.addForce(body, force);
         }
     }
 }
 
-export class Collisions {
-    static GHOST = 2
-
-    static pointSegmentDistance(point, lineA, lineB) {
-        let ab = vecMath.subtract(lineB, lineA)
-        let ap = vecMath.subtract(point, lineA)
-
-        let proj = vecMath.dot(ap, ab)
-        let abLengthSpuared = vecMath.lengthSquared(ab);
-        let d = proj / abLengthSpuared;
-
-        let contactPoint;
-
-        if (d <= 0) {
-            contactPoint = lineA
-        } else if (d >= 1) {
-            contactPoint = lineB
-        } else {
-            contactPoint = vecMath.add(lineA, vecMath.multiply(ab, d))
-        }
-
-        let distanceSquared = vecMath.distanceSquared(point, contactPoint)
-        return {
-            distanceSquared: distanceSquared,
-            contactPoint: contactPoint,
-        }
-    }
-
-    static findContactPoints(bodyA, bodyB) {
-        let shapeTypeA = bodyA.shapeType
-        let shapeTypeB = bodyB.shapeType
-
-        let contactPoint1 = vecMath.zero();
-        let contactPoint2 = vecMath.zero();
-        let contactPointCount = 0;
-
-        let typeAisPolygon = (shapeTypeA == classicPhysicsWorld.shapeType.box || shapeTypeA == classicPhysicsWorld.shapeType.polygon)
-        let typeBisPolygon = (shapeTypeB == classicPhysicsWorld.shapeType.box || shapeTypeB == classicPhysicsWorld.shapeType.polygon)
-        let typeAisCircle = (shapeTypeA == classicPhysicsWorld.shapeType.circle)
-        let typeBisCircle = (shapeTypeB == classicPhysicsWorld.shapeType.circle)
-
-        if (typeAisPolygon) {
-            if (typeBisPolygon) {
-                let contactPointInfo = Collisions.findContactPointPolygon_Polygon(bodyA.getTransformedVerticies(), bodyB.getTransformedVerticies())
-                contactPoint1 = contactPointInfo.contactPoint1
-                contactPoint2 = contactPointInfo.contactPoint2
-                contactPointCount = contactPointInfo.contactPointCount
-            } else if (typeBisCircle) {
-                contactPoint1 = Collisions.findContactPointCircle_Polygon(bodyB.position, bodyB.radius, bodyA.position, bodyA.getTransformedVerticies())
-                contactPointCount = 1
-            }
-        } else if (typeAisCircle) {
-            if (typeBisPolygon) {
-                contactPoint1 = Collisions.findContactPointCircle_Polygon(bodyA.position, bodyA.radius, bodyB.position, bodyB.getTransformedVerticies())
-                contactPointCount = 1
-            } else if (typeBisCircle) {
-                contactPoint1 = Collisions.findContactPointCircle_Circle(bodyA.position, bodyA.radius, bodyB.position)
-                contactPointCount = 1
-            }
-        } else {
-            console.error("A body has been passed an illegal shapeType")
-            console.error(`It has a shapeType ${shapeTypeA.shapeType} and is this body`)
-            console.error(bodyA)
-        }
-
-
-        return {
-            contactPoint1: contactPoint1,
-            contactPoint2: contactPoint2,
-            contactPointCount: contactPointCount,
-        }
-    }
-
-    static findContactPointPolygon_Polygon(verticiesA, verticiesB) {
-        let contactPoint1 = null;
-        let contactPoint2 = null;
-        let contactPointCount = null;
-
-        let minDistSquared = Infinity
-
-        for (let i = 0; i < verticiesA.length; ++i) {
-            let point = verticiesA[i]
-            for (let j = 0; j < verticiesB.length; ++j) {
-                let va = verticiesB[j]
-                let vb = verticiesB[(j + 1) % verticiesB.length]
-                let pointToEdgeInfo = Collisions.pointSegmentDistance(point, va, vb)
-
-                if (Collisions.nearlyEqual(pointToEdgeInfo.distanceSquared, minDistSquared)) {
-                    if (!vecMath.equal(pointToEdgeInfo.contactPoint, contactPoint1, classicPhysicsWorld.negligibleDistance)) {
-                        contactPoint2 = pointToEdgeInfo.contactPoint;
-                        contactPointCount = 2
-                    }
-                } else
-                    if (pointToEdgeInfo.distanceSquared < minDistSquared) {
-                        minDistSquared = pointToEdgeInfo.distanceSquared;
-                        contactPoint1 = pointToEdgeInfo.contactPoint;
-                        contactPointCount = 1
-                    }
-            }
-        }
-
-        for (let i = 0; i < verticiesB.length; ++i) {
-            let point = verticiesB[i]
-            for (let j = 0; j < verticiesA.length; ++j) {
-                let va = verticiesA[j]
-                let vb = verticiesA[(j + 1) % verticiesA.length]
-                let pointToEdgeInfo = Collisions.pointSegmentDistance(point, va, vb)
-
-                if (Collisions.nearlyEqual(pointToEdgeInfo.distanceSquared, minDistSquared)) {
-                    if (!vecMath.equal(pointToEdgeInfo.contactPoint, contactPoint1, classicPhysicsWorld.negligibleDistance)) {
-                        contactPoint2 = pointToEdgeInfo.contactPoint;
-                        contactPointCount = 2
-                    }
-                } else
-                    if (pointToEdgeInfo.distanceSquared < minDistSquared) {
-                        minDistSquared = pointToEdgeInfo.distanceSquared;
-                        contactPoint1 = pointToEdgeInfo.contactPoint;
-                        contactPointCount = 1
-                    }
-            }
-        }
-
-        return {
-            contactPoint1: contactPoint1,
-            contactPoint2: contactPoint2,
-            contactPointCount: contactPointCount
-        }
-    }
-
-    static nearlyEqual(num1, num2, marginOfError = classicPhysicsWorld.negligibleDistance) {
-        return Math.abs(Math.abs(num1) - Math.abs(num2)) < marginOfError
-    }
-
-    static findContactPointCircle_Polygon(circleCenter, circleRadius, polygonCenter, polygonVerticies) {
-        let minDistSquared = Infinity
-        let contactPoint;
-        for (let i = 0; i < polygonVerticies.length; ++i) {
-            let va = polygonVerticies[i]
-            let vb = polygonVerticies[(i + 1) % polygonVerticies.length]
-            let pointToEdgeInfo = Collisions.pointSegmentDistance(circleCenter, va, vb)
-
-            if (pointToEdgeInfo.distanceSquared < minDistSquared) {
-                minDistSquared = pointToEdgeInfo.distanceSquared
-                contactPoint = pointToEdgeInfo.contactPoint
-            }
-        }
-        return contactPoint;
-    }
-
-    static findContactPointCircle_Circle(centerA, radiusA, centerB) {
-        let ab = vecMath.subtract(centerB, centerA);
-        let direction = vecMath.normalize(ab);
-        let contactPoint = vecMath.add(centerA, (vecMath.multiply(direction, radiusA)))
-        return contactPoint
-    }
-
-    static Collide(bodyA, bodyB) {
-        let shapeTypeA = bodyA.shapeType
-        let shapeTypeB = bodyB.shapeType
-
-        let typeAisPolygon = (shapeTypeA == classicPhysicsWorld.shapeType.box || shapeTypeA == classicPhysicsWorld.shapeType.polygon)
-        let typeBisPolygon = (shapeTypeB == classicPhysicsWorld.shapeType.box || shapeTypeB == classicPhysicsWorld.shapeType.polygon)
-
-        if (typeAisPolygon) {
-
-            if (typeBisPolygon) {
-                return Collisions.intersectPolygons(bodyA.getTransformedVerticies(), bodyB.getTransformedVerticies())
-            } else if (shapeTypeB == classicPhysicsWorld.shapeType.circle) {
-                let collisionInformation = Collisions.intersectCirclePolygon(bodyB.position, bodyB.radius, bodyA.getTransformedVerticies())
-                if (collisionInformation) {
-                    collisionInformation.normal = vecMath.invert(collisionInformation.normal);
-                }
-                return collisionInformation;
-            }
-
-        } else if (shapeTypeA == classicPhysicsWorld.shapeType.circle) {
-
-            if (typeBisPolygon) {
-                return Collisions.intersectCirclePolygon(bodyA.position, bodyA.radius, bodyB.getTransformedVerticies())
-            } else if (shapeTypeB == classicPhysicsWorld.shapeType.circle) {
-                return Collisions.intersectCircles(bodyA.position, bodyA.radius, bodyB.position, bodyB.radius)
-            }
-
-        } else {
-            console.error("A body has been passed an illegal shapeType")
-            console.error(`It has a shapeType ${shapeTypeA.shapeType} and is this body`)
-            console.error(bodyA)
-        }
-
-        return false;
-    }
-
-    static intersectCirclePolygon(circleCenter, circleRadius, verticies) {
-        let normal = new vec2D(0, 0);
-        let depth = INFINITY;
-
-        let axis, axisDepth, projA, projB;
-
-        for (let i = 0; i < verticies.length; ++i) {
-            let vertexA = verticies[i]
-            let vertexB = verticies[(i + 1) % verticies.length]
-
-            let edge = vecMath.subtract(vertexB, vertexA)
-            axis = vecMath.normal(edge) // the asix for the seperation test
-
-            vecMath.normalize(axis, true);
-            projA = Collisions.projectVerticies(verticies, axis)
-            projB = Collisions.projectCircle(circleCenter, circleRadius, axis)
-
-            if (projA.min >= projB.max || projB.min >= projA.max) {
-                return false;
-            }
-
-            axisDepth = Math.min(projA.max - projB.min, projB.max - projA.min)
-            if (axisDepth < depth) {
-                depth = axisDepth
-                normal = axis;
-            }
-        }
-
-        let cpIndex = Collisions.findClosestPointOnPolygonVertexIndex(circleCenter, verticies)
-        let cp = verticies[cpIndex]
-
-        axis = vecMath.subtract(cp, circleCenter)
-
-        vecMath.normalize(axis, true);
-        projA = Collisions.projectVerticies(verticies, axis)
-        projB = Collisions.projectCircle(circleCenter, circleRadius, axis)
-
-        if (projA.min >= projB.max || projB.min >= projA.max) {
-            return false;
-        }
-
-        axisDepth = Math.min(projA.max - projB.min, projB.max - projA.min)
-        if (axisDepth < depth) {
-            depth = axisDepth
-            normal = axis;
-        }
-
-        let polygonCenter = Collisions.findArithmeticMeanPoint(verticies)
-        let direction = vecMath.subtract(polygonCenter, circleCenter)
-        if (vecMath.dot(direction, normal) < 0) {
-            vecMath.invert(normal, true)
-        }
-
-        return {
-            normal: normal,
-            depth: depth
-        };
-    }
-
-    static isPointInPolygon(point, verticies) {
-        let normal = new vec2D(0, 0);
-        let depth = INFINITY;
-
-        for (let i = 0; i < verticiesA.length; ++i) {
-            let vertexA = verticiesA[i]
-            let vertexB = verticiesA[(i + 1) % verticiesA.length]
-
-            let edge = vecMath.subtract(vertexB, vertexA)
-            let axis = vecMath.normal(edge) // the asix for the seperation test
-
-            vecMath.normalize(axis, true);
-            let projA = Collisions.projectVerticies(verticiesA, axis)
-            let projB = Collisions.projectVerticies(verticiesB, axis)
-
-            if (projA.min >= projB.max || projB.min >= projA.max) {
-                return false;
-            }
-
-            let axisDepth = Math.min(projA.max - projB.min, projB.max - projA.min)
-            if (axisDepth < depth) {
-                depth = axisDepth
-                normal = axis;
-            }
-        }
-        for (let i = 0; i < verticiesB.length; ++i) {
-            let vertexA = verticiesB[i]
-            let vertexB = verticiesB[(i + 1) % verticiesB.length]
-
-            let edge = vecMath.subtract(vertexB, vertexA)
-            let axis = vecMath.normal(edge) // the asix for the seperation test
-
-            axis = vecMath.normalize(axis);
-            let projA = Collisions.projectVerticies(verticiesA, axis)
-            let projB = Collisions.projectVerticies(verticiesB, axis)
-
-            if (projA.min >= projB.max || projB.min >= projA.max) {
-                return false;
-            }
-
-            let axisDepth = Math.min(projA.max - projB.min, projB.max - projA.min)
-            if (axisDepth < depth) {
-                depth = axisDepth
-                normal = axis;
-            }
-        }
-
-        let centerA = Collisions.findArithmeticMeanPoint(verticiesA)
-        let centerB = Collisions.findArithmeticMeanPoint(verticiesB)
-
-        let direction = vecMath.subtract(centerB, centerA)
-
-        if (vecMath.dot(direction, normal) < 0) {
-            vecMath.invert(normal, true)
-        }
-
-        return {
-            normal: normal,
-            depth: depth
-        };
-    }
-
-    static intersectPolygons(verticiesA, verticiesB) {
-        let normal = new vec2D(0, 0);
-        let depth = INFINITY;
-
-        for (let i = 0; i < verticiesA.length; ++i) {
-            let vertexA = verticiesA[i]
-            let vertexB = verticiesA[(i + 1) % verticiesA.length]
-
-            let edge = vecMath.subtract(vertexB, vertexA)
-            let axis = vecMath.normal(edge) // the asix for the seperation test
-
-            vecMath.normalize(axis, true);
-            let projA = Collisions.projectVerticies(verticiesA, axis)
-            let projB = Collisions.projectVerticies(verticiesB, axis)
-
-            if (projA.min >= projB.max || projB.min >= projA.max) {
-                return false;
-            }
-
-            let axisDepth = Math.min(projA.max - projB.min, projB.max - projA.min)
-            if (axisDepth < depth) {
-                depth = axisDepth
-                normal = axis;
-            }
-        }
-        for (let i = 0; i < verticiesB.length; ++i) {
-            let vertexA = verticiesB[i]
-            let vertexB = verticiesB[(i + 1) % verticiesB.length]
-
-            let edge = vecMath.subtract(vertexB, vertexA)
-            let axis = vecMath.normal(edge) // the asix for the seperation test
-
-            vecMath.normalize(axis, true);
-            let projA = Collisions.projectVerticies(verticiesA, axis)
-            let projB = Collisions.projectVerticies(verticiesB, axis)
-
-            if (projA.min >= projB.max || projB.min >= projA.max) {
-                return false;
-            }
-
-            let axisDepth = Math.min(projA.max - projB.min, projB.max - projA.min)
-            if (axisDepth < depth) {
-                depth = axisDepth
-                normal = axis;
-            }
-        }
-
-        let centerA = Collisions.findArithmeticMeanPoint(verticiesA)
-        let centerB = Collisions.findArithmeticMeanPoint(verticiesB)
-
-        let direction = vecMath.subtract(centerB, centerA)
-
-        if (vecMath.dot(direction, normal) < 0) {
-            /// coo, removing true here will make the body act like a portal of soorts
-            vecMath.invert(normal, true)
-        }
-
-        return {
-            normal: normal,
-            depth: depth
-        };
-    }
-
-    static intersectLines(lineApt1, lineApt2, lineBpt1, lineBpt2) {
-        let A1 = lineApt2.y - lineApt1.y
-        let B1 = lineApt1.x - lineApt2.x
-        let C1 = A1 * lineApt1.x + B1 * lineApt1.y;
-
-        let A2 = lineBpt2.y - lineBpt1.y
-        let B2 = lineBpt1.x - lineBpt2.x
-        let C2 = A1 * lineBpt1.x + B1 * lineBpt1.y;
-
-        let det = A1 * B2 - A2 * B1;
-        if (det === 0) return; // lines are parrallet
-
-        let x = (B2 * C1 - B1 * C2) / det;
-        let y = (A1 * C2 - A2 * C1) / det;
-
-        let onLines1 = Math.min(lineApt1.x, lineApt2.x) <= x || Math.max(lineApt1.x, lineApt2.x) >= x &&
-            Math.min(lineApt1.y, lineApt2.y) <= y || Math.max(lineApt1.y, lineApt2.y) >= y;
-        let onLines2 = Math.min(lineBpt1.x, lineBpt2.x) <= x || Math.max(lineBpt1.x, lineBpt2.x) >= x &&
-            Math.min(lineBpt1.y, lineBpt2.y) <= y || Math.max(lineBpt1.y, lineBpt2.y) >= y;
-        if (!onLines1 || !onLines2) return; // intersections point is not on one of the line segments
-        return new vec2D(x, y);
-    }
-
-    /// UNUSED
-    static findClosestPointOnPolygon(referencePoint, verticies) {
-        let clossetPoint = verticies[0];
-        let minDistance = INFINITY;
-        for (let i = 0; i < verticies.length; ++i) {
-            let distance = vecMath.distanceSquared(referencePoint, verticies[i])
-            if (distance < minDistance) {
-                minDistance = distance
-                clossetPoint = verticies[i]
-            }
-        }
-        return clossetPoint;
-    }
-
-    static findClosestPointOnPolygonVertexIndex(referencePoint, verticies) {
-        let index = -1
-        let minDistance = INFINITY;
-        for (let i = 0; i < verticies.length; ++i) {
-            let distance = vecMath.distanceSquared(referencePoint, verticies[i])
-            if (distance < minDistance) {
-                minDistance = distance
-                index = i
-            }
-        }
-        return index;
-    }
-
-    static findArithmeticMeanPoint(verticies) {
-        let sumX = 0;
-        let sumY = 0;
-        for (let i = 0; i < verticies.length; ++i) {
-            let vector = verticies[i];
-            sumX += vector.x
-            sumY += vector.y
-        }
-        return new vec2D(sumX / verticies.length, sumY / verticies.length)
-    }
-
-    static projectCircle(center, radius, axis) {
-        let direction = vecMath.normalize(axis)
-        let directionAndRadius = vecMath.multiply(direction, radius)
-
-        let p1 = vecMath.add(center, directionAndRadius)
-        let p2 = vecMath.subtract(center, directionAndRadius)
-
-        let min = vecMath.dot(p1, axis)
-        let max = vecMath.dot(p2, axis)
-
-        return {
-            min: Math.min(min, max),
-            max: Math.max(min, max)
-        }
-    }
-
-    static projectVerticies(verticies, axis) {
-        let min = INFINITY;
-        let max = -INFINITY;
-
-        for (let i = 0; i < verticies.length; ++i) {
-            let vertex = verticies[i]
-            let projection = vecMath.dot(vertex, axis)
-
-            if (projection < min) { min = projection }
-            if (projection > max) { max = projection }
-        }
-
-        return {
-            min: min,
-            max: max
-        }
-    }
-
-    /// Optimization: Should square the verticies to avoid sqrt from distance calculation
-    static intersectCircles(centerA, radiusA, centerB, radiusB) {
-        let distance = vecMath.distance(centerA, centerB);
-        let radii = radiusA + radiusB;
-        if (distance >= radii) {
-            return false
-        }
-
-        let normal = vecMath.normalize(vecMath.subtract(centerB, centerA))
-        let depth = radii - distance;
-
-        return {
-            normal: normal,
-            depth: depth
-        }
-    }
-
-    static intersectAANN(AABB1, AABB2) {
-        let a = AABB1;
-        let b = AABB2;
-        return a.min.x <= b.max.x &&
-            a.max.x >= b.min.x &&
-            a.min.y <= b.max.y &&
-            a.max.y >= b.min.y;
-    }
-
-}
-
-export class CollisionManifold {
-    constructor(bodyA, bodyB, normal, depth, contactPoint1, contactPoint2, contactPointCount) {
-        this.bodyA = bodyA;
-        this.bodyB = bodyB;
-        this.depth = depth;
-        this.normal = normal;
-        this.contactPoint1 = contactPoint1;
-        this.contactPoint2 = contactPoint2;
-        this.contactPointCount = contactPointCount;
-    }
-}
-
-export class transformPoint {
-    static zero = new transformPoint(0, 0, 0);
+export class TransformPoint {
+    static zero = new TransformPoint(0, 0, 0);
     constructor(x, y, angle) {
         this.setTransform(x, y, angle)
     }
@@ -1459,15 +1057,31 @@ export class transformPoint {
     }
 }
 
-export class classicPhysics {
+/// TODO: Add event listenig for thense rigidbody events'
+/// TIP: find where all these events were called before by looking up
+///  Ctrl + F  body.event
+// onAdd() { };
+// onRemove() { };
+
+// preCollision() { }
+
+// onCollisionStart(body, collisionInformation) { };
+// onCollisionContinue(body, collisionInformation) { };
+// onCollisionEnd(body, collisionInformation) { };
+
+// callback() { };
+
+// preRender() { };
+// postRender() { };
+export class ClassicPhysics {
     constructor() {
         this.safeMode = true;
         this.scale = 100
 
-        this.rigidBody = class {
+        this.RigidBody = class {
             constructor(position, mass, inertia, area, density, restitution, isStatic, radius, scaleX, scaleY, verticies, shapeType) {
                 this.position = position;
-                this.oldPosition = vecMath.copy(position);
+                this.oldPosition = VecMath.copy(position);
                 this.linearVelocity = new vec2D(0, 0);
                 this.linearVelocityCap = {
                     minX: -INFINITY, maxX: INFINITY,
@@ -1478,13 +1092,18 @@ export class classicPhysics {
                 this.angularAcceleration = 0
                 this.force = new vec2D(0, 0);
 
+                this.behaviours = [];
+
                 this.lifetime = 0;
+                this.toBeRemoved = false
+
                 this.lockedX = false;
                 this.lockedY = false;
                 this.lockedAngle = false;
                 this.gravity = true;
                 this.inCollision = false;
-                this.tag = "";
+                // this.tag = "";
+                this.tags = [];
                 this.ID = generateRandomId();
 
                 this.shapeType = shapeType;
@@ -1509,12 +1128,12 @@ export class classicPhysics {
                 this.wait = false
 
 
-                if (!(this.shapeType == classicPhysicsWorld.shapeType.circle)) {
-                    if (this.shapeType == classicPhysicsWorld.shapeType.box) {
+                if (!(this.shapeType == ClassicPhysicsWorld.shapeType.circle)) {
+                    if (this.shapeType == ClassicPhysicsWorld.shapeType.box) {
                         this.width = scaleX;
                         this.height = scaleY
                         this.verticies = verticies;
-                    } else if (this.shapeType == classicPhysicsWorld.shapeType.polygon) {
+                    } else if (this.shapeType == ClassicPhysicsWorld.shapeType.polygon) {
                         this.verticies = verticies;
                     }
                     this.transformedVerticies = new Array(this.verticies.length);
@@ -1527,202 +1146,42 @@ export class classicPhysics {
 
             }
 
-            onAdd() { };
-            onRemove() { };
-
-            preCollision() { }
-
-            onCollisionStart(body, collisionInformation) { };
-            onCollisionContinue(body, collisionInformation) { };
-            onCollisionEnd(body, collisionInformation) { };
-
-            callback() { };
-
-            preRender() { };
-            postRender() { };
-            render() {
-                this.preRender();
-                if (this.drawing) {
-                    this.drawing()
-                }
-                this.postRender();
-            }
-
-            getTransformedVerticies() {
-                if (this.transformUpdateRequired) {
-                    let transform = new transformPoint(this.position.x, this.position.y, this.angle)
-                    this.transformedVerticies.length = 0;
-
-                    for (let i = 0; i < this.verticies.length; ++i) {
-                        let vertex = this.verticies[i]
-                        let transformedVertex = vecMath.transform(vertex, transform)
-                        this.transformedVerticies.push(transformedVertex)
-                    }
-                }
-
-                this.transformUpdateRequired = false;
-                return this.transformedVerticies;
-            }
-
-            getAABB() {
-                if (this.aabbUpdateRequired) {
-                    let minX = INFINITY;
-                    let minY = INFINITY;
-                    let maxX = -INFINITY;
-                    let maxY = -INFINITY;
-                    if (this.shapeType == classicPhysicsWorld.shapeType.box || this.shapeType == classicPhysicsWorld.shapeType.polygon) {
-                        let verticies = this.getTransformedVerticies();
-                        for (let i = 0; i < this.verticies.length; ++i) {
-                            let vertex = verticies[i]
-                            if (vertex.x < minX) { minX = vertex.x }
-                            if (vertex.y < minY) { minY = vertex.y }
-                            if (vertex.x > maxX) { maxX = vertex.x }
-                            if (vertex.y > maxY) { maxY = vertex.y }
-                        }
-                    } else if (this.shapeType == classicPhysicsWorld.shapeType.circle) {
-                        minX = this.position.x - this.radius;
-                        minY = this.position.y - this.radius;
-                        maxX = this.position.x + this.radius;
-                        maxY = this.position.y + this.radius;
-                    } else {
-                        console.error("unkown shapeType")
-                    }
-                    if (!this.aabb) {
-                        this.aabb = new classicAABB(minX, minY, maxX, maxY)
-                    } else {
-                        this.aabb.min.x = minX
-                        this.aabb.min.y = minY
-                        this.aabb.max.x = maxX
-                        this.aabb.max.y = maxY
-                    }
-                    this.aabbUpdateRequired = false;
-                }
-                return this.aabb;
-            }
-
-            setMass(mass) {
-                if (mass == 0) {
-                    console.error("RigidBody Error: Can't set a body's mass to 0, make the body static instead")
-                    return
-                }
-                this.mass = mass;
-                this.invMass = 1 / this.mass;
-                this.inertia = classicPhysics.CalculateRotationalInertia(this);
-                this.invInertia = 1 / this.inertia
-            }
-
-            setStatic(isStatic = true) {
-                this.isStatic = isStatic;
-                if (this.isStatic) {
-                    this.invMass = 0
-                    this.invInertia = 0
-                } else {
-                    this.invMass = 1 / this.mass
-                    this.invInertia = 1 / this.inertia
-                }
-            }
-
-            applyFriction(frictionVector, deltatime) {
-                if (this.isStatic || this.isTrigger) return;
-                this.linearVelocity.x *= 1 / (1 + (deltatime * frictionVector.x));
-                this.linearVelocity.y *= 1 / (1 + (deltatime * frictionVector.y));
-            }
-
-            addVelocity(velocityVector) {
-                if (this.isStatic) return;
-                this.linearVelocity = vecMath.add(this.linearVelocity, velocityVector)
-                this.linearVelocity.x = clip(this.linearVelocity.x, this.linearVelocityCap.minX, this.linearVelocityCap.maxX)
-                this.linearVelocity.y = clip(this.linearVelocity.y, this.linearVelocityCap.minY, this.linearVelocityCap.maxY)
-            }
-
-            setVelocity(velocityVector) {
-                if (this.isStatic) return;
-                this.linearVelocity.x = velocityVector.x;
-                this.linearVelocity.y = velocityVector.y;
-                this.linearVelocity.x = clip(this.linearVelocity.x, this.linearVelocityCap.minX, this.linearVelocityCap.maxX)
-                this.linearVelocity.y = clip(this.linearVelocity.y, this.linearVelocityCap.minY, this.linearVelocityCap.maxY)
-            }
-
-            addForce(forceVector) {
-                if (this.isStatic) return;
-                this.force.add(forceVector)
-            }
-
-            move(amountVector) {
-                this.position.x += amountVector.x;
-                this.position.y += amountVector.y
-                this.transformUpdateRequired = true;
-                this.aabbUpdateRequired = true;
-            }
-            moveTo(postionVector) {
-                this.position.x = postionVector.x;
-                this.position.y = postionVector.y;
-                this.transformUpdateRequired = true;
-                this.aabbUpdateRequired = true;
-            }
-            moveToXY(x, y) {
-                this.position.x = x;
-                this.position.y = y;
-                this.transformUpdateRequired = true;
-                this.aabbUpdateRequired = true;
-            }
-            rotate(amount) {
-                this.angle += amount;
-                this.transformUpdateRequired = true;
-                this.aabbUpdateRequired = true;
-            }
-            rotateTo(angle) {
-                this.angle = angle;
-                this.transformUpdateRequired = true;
-                this.aabbUpdateRequired = true;
-            }
-            setGeneralMaxVelocity(value) {
-                this.linearVelocityCap.maxX = value
-                this.linearVelocityCap.maxY = value
-            }
-            hasTag(tag) {
-                return this.tag.includes(tag);
-            }
-            setMinVelocityX(value) { this.linearVelocityCap.minX = value }
-            setMinVelocityY(value) { this.linearVelocityCap.minY = value }
-            setMaxVelocityX(value) { this.linearVelocityCap.maxX = value }
-            setMaxVelocityY(value) { this.linearVelocityCap.maxY = value }
         }
-
-        this.joint = class {
-            constructor(bodyA, bodyB, length, k, dampingRatio = 0.9, offsetA = vecMath.zero(), offsetB = vecMath.zero()) {
+        this.Joint = class {
+            constructor(bodyA, bodyB, length, k, dampingRatio = 0.9, offsetA = VecMath.zero(), offsetB = VecMath.zero()) {
                 this.bodyA = bodyA;
                 this.bodyB = bodyB;
-                this.transformPointA = new transformPoint(bodyA.position.x, bodyA.position.y, bodyA.angle)
-                this.transformPointB = new transformPoint(bodyB.position.x, bodyB.position.y, bodyB.angle)
-                this.offsetA = offsetA || vecMath.zero();
-                this.offsetB = offsetB || vecMath.zero();
-                this.pointA = vecMath.add(this.bodyA.position, vecMath.transform(this.offsetA, this.transformPointA))
-                this.pointB = vecMath.add(this.bodyB.position, vecMath.transform(this.offsetB, this.transformPointB))
-                this.oldPointA = vecMath.copy(this.pointA)
-                this.oldPointB = vecMath.copy(this.pointB)
+                this.TransformPointA = new TransformPoint(bodyA.position.x, bodyA.position.y, bodyA.angle)
+                this.TransformPointB = new TransformPoint(bodyB.position.x, bodyB.position.y, bodyB.angle)
+                this.offsetA = offsetA || VecMath.zero();
+                this.offsetB = offsetB || VecMath.zero();
+                this.pointA = VecMath.add(this.bodyA.position, VecMath.transform(this.offsetA, this.TransformPointA))
+                this.pointB = VecMath.add(this.bodyB.position, VecMath.transform(this.offsetB, this.TransformPointB))
+                this.oldPointA = VecMath.copy(this.pointA)
+                this.oldPointB = VecMath.copy(this.pointB)
                 if (length == "auto" || length == null) {
-                    length = vecMath.distance(bodyA.position, bodyB.position)
+                    length = VecMath.distance(bodyA.position, bodyB.position)
                 }
                 this.length = length
                 this.k = k;
                 this.dampingRatio = dampingRatio
             }
             step(deltatime) {
-                this.transformPointA.setTransform(this.bodyA.position.x, this.bodyA.position.y, this.bodyA.angle)
-                this.transformPointB.setTransform(this.bodyB.position.x, this.bodyB.position.y, this.bodyB.angle)
-                this.oldPointA.copy(this.pointA)
-                this.oldPointB.copy(this.pointB)
-                this.pointA.copy(vecMath.transform(this.offsetA, this.transformPointA))
-                this.pointB.copy(vecMath.transform(this.offsetB, this.transformPointB))
+                this.TransformPointA.setTransform(this.bodyA.position.x, this.bodyA.position.y, this.bodyA.angle)
+                this.TransformPointB.setTransform(this.bodyB.position.x, this.bodyB.position.y, this.bodyB.angle)
+                VecMath.clone(this.oldPointA, this.pointA)
+                VecMath.clone(this.oldPointB, this.pointB)
+
+                VecMath.clone(this.pointA, VecMath.transform(this.offsetA, this.TransformPointA))
+                VecMath.clone(this.pointB, VecMath.transform(this.offsetB, this.TransformPointB))
                 let velA = this.bodyA.linearVelocity
                 let velB = this.bodyB.linearVelocity
-                // let velA = vecMath.subtract(this.oldPointA, this.pointA)
-                // let velB = vecMath.subtract(this.oldPointB, this.pointB)
+                // let velA = VecMath.subtract(this.oldPointA, this.pointA)
+                // let velB = VecMath.subtract(this.oldPointB, this.pointB)
 
 
 
-                let distance = vecMath.distance(this.pointA, this.pointB)
+                let distance = VecMath.distance(this.pointA, this.pointB)
                 let difference = distance - this.length
 
                 let percent = (difference / distance)
@@ -1733,32 +1192,34 @@ export class classicPhysics {
                 let offsetX = vx * percent;
                 let offsetY = vy * percent;
 
-                let force = vecMath.multiply(new vec2D(offsetX, offsetY), this.k)
-                // let damper = vecMath.multiply(force, 1)
-                let damper = vecMath.multiply(vecMath.subtract(
+                let force = VecMath.multiply(new vec2D(offsetX, offsetY), this.k)
+                // let damper = VecMath.multiply(force, 1)
+                let damper = VecMath.multiply(VecMath.subtract(
                     velA, velB), -this.dampingRatio)
-                force = vecMath.add(force, damper)
-                force.multiply(deltatime)
+
+                force = VecMath.add(force, damper)
+                VecMath.multiply(force, deltatime, true)
+
                 if (!this.bodyA.isStatic) {
-                    this.bodyA.addForce(force)
+                    RigidBody.addForce(this.bodyA, force)
                 }
                 if (!this.bodyB.static) {
-                    this.bodyB.addForce(vecMath.invert(force))
+                    RigidBody.addForce(this.bodyB, VecMath.invert(force))
                 }
 
                 /*                 
-                                let direction = vecMath.subtract(this.pointA, this.pointB);
-                                let e = vecMath.length(direction) - this.length
+                                let direction = VecMath.subtract(this.pointA, this.pointB);
+                                let e = VecMath.length(direction) - this.length
                                 direction.normalize()
                 
-                                let force = vecMath.multiply(direction, -this.k * e)
-                                let damper = vecMath.multiply(vecMath.subtract(
+                                let force = VecMath.multiply(direction, -this.k * e)
+                                let damper = VecMath.multiply(VecMath.subtract(
                                     velA, velB), -this.dampingRatio)
-                                force = vecMath.add(force, damper)
+                                force = VecMath.add(force, damper)
                                 // force.multiply(deltatime)
                 
                                 this.bodyA.addForce((force) )
-                                this.bodyB.addForce(vecMath.invert(force))
+                                this.bodyB.addForce(VecMath.invert(force))
                  */
             }
         }
@@ -1767,16 +1228,16 @@ export class classicPhysics {
     static CalculateRotationalInertia(body) {
         let shapeType = body.shapeType;
         let mass = body.mass
-        if (shapeType = classicPhysicsWorld.shapeType.circle) {
+        if (shapeType = ClassicPhysicsWorld.shapeType.circle) {
             return (1 / 2) * mass * (body.radius ** 2)
         } else
-            if (shapeType = classicPhysicsWorld.shapeType.box) {
+            if (shapeType = ClassicPhysicsWorld.shapeType.box) {
                 return (1 / 12) * mass * (body.width ** 2 + body.height ** 2)
             } else {
-                let verticies = body.getTransformedVerticies()
-                // const area = classicPhysics.calculatePolygonArea(verticies);
-                // const centroid = classicPhysics.calculatePolygonCentroid(verticies, area);
-                return classicPhysics.calculatePolygonInertia(verticies, mass);
+                let verticies = RigidBody.getTransformedVerticies(body)
+                // const area = ClassicPhysics.calculatePolygonArea(verticies);
+                // const centroid = ClassicPhysics.calculatePolygonCentroid(verticies, area);
+                return ClassicPhysics.calculatePolygonInertia(verticies, mass);
             }
     }
 
@@ -1812,17 +1273,17 @@ export class classicPhysics {
         return scaledVerticies
     }
 
-    /**
- * Calculates the moment of inertia for a polygon.
- * @param {Array<{x: number, y: number}>} vertices - Array of vertex coordinates.
- * @param {number} mass - Total mass of the polygon.
- * @returns {number} Moment of inertia.
- */
-    static calculateInertia(vertices, mass) {
-        const area = classicPhysics.calculatePolygonArea(vertices);
-        const centroid = classicPhysics.calculatePolygonCentroid(vertices, area);
-        return classicPhysics.calculatePolygonInertia(vertices, centroid, mass);
-    }
+    //     /**
+    //  * Calculates the moment of inertia for a polygon.
+    //  * @param {Array<{x: number, y: number}>} vertices - Array of vertex coordinates.
+    //  * @param {number} mass - Total mass of the polygon.
+    //  * @returns {number} Moment of inertia.
+    //  */
+    //     static calculateInertia(vertices, mass) {
+    //         const area = ClassicPhysics.calculatePolygonArea(vertices);
+    //         const centroid = ClassicPhysics.calculatePolygonCentroid(vertices, area);
+    //         return ClassicPhysics.calculatePolygonInertia(vertices, centroid, mass);
+    //     }
 
     /**
      * Calculates the area of a polygon using the shoelace formula.
@@ -1847,7 +1308,7 @@ export class classicPhysics {
      */
     static calculatePolygonCentroid(vertices, area) {
         if (!area) {
-            area = classicPhysics.calculatePolygonArea(vertices)
+            area = ClassicPhysics.calculatePolygonArea(vertices)
         }
         let cx = 0, cy = 0;
         for (let i = 0; i < vertices.length; i++) {
@@ -1873,7 +1334,7 @@ export class classicPhysics {
     static calculatePolygonInertia(vertices, mass, centroid) {
         let inertia = 0;
         if (!centroid) {
-            centroid = classicPhysics.calculatePolygonCentroid(vertices, classicPhysics.calculatePolygonArea(vertices))
+            centroid = ClassicPhysics.calculatePolygonCentroid(vertices, ClassicPhysics.calculatePolygonArea(vertices))
         }
         for (let i = 0; i < vertices.length; i++) {
             const current = vertices[i];
@@ -1927,7 +1388,7 @@ export class classicPhysics {
     }
 
     static parseWorldVerticies(verticies) {
-        return classicPhysics.centerVerticies(verticies)
+        return ClassicPhysics.centerVerticies(verticies)
     }
 
 
@@ -1935,18 +1396,18 @@ export class classicPhysics {
         let area = Math.PI * radius * radius;
 
         if (this.safeMode) {
-            if (area < classicPhysicsWorld.minBodySize) {
-                console.error(`Circle radius is too small! The min object area is '${classicPhysicsWorld.minBodySize}' metres spuared`)
+            if (area < ClassicPhysicsWorld.minBodySize) {
+                console.error(`Circle radius is too small! The min object area is '${ClassicPhysicsWorld.minBodySize}' metres spuared`)
                 return false
-            } else if (area > classicPhysicsWorld.maxBodySize) {
-                console.error(`Circle radius is too large! The nax object area is '${classicPhysicsWorld.maxBodySize}' metres spuared`)
+            } else if (area > ClassicPhysicsWorld.maxBodySize) {
+                console.error(`Circle radius is too large! The nax object area is '${ClassicPhysicsWorld.maxBodySize}' metres spuared`)
                 return false
             }
-            if (density < classicPhysicsWorld.minDensity) {
-                console.error(`Circle density is too small! The min object density is '${classicPhysicsWorld.minDensity}'`)
+            if (density < ClassicPhysicsWorld.minDensity) {
+                console.error(`Circle density is too small! The min object density is '${ClassicPhysicsWorld.minDensity}'`)
                 return false
-            } else if (density > classicPhysicsWorld.maxDensity) {
-                console.error(`Circle density is too large! The nax object density is '${classicPhysicsWorld.maxDensity}'`)
+            } else if (density > ClassicPhysicsWorld.maxDensity) {
+                console.error(`Circle density is too large! The nax object density is '${ClassicPhysicsWorld.maxDensity}'`)
                 return false
             }
         }
@@ -1955,30 +1416,30 @@ export class classicPhysics {
         let mass = area * density;
         let inertia = (1 / 2) * mass * (radius ** 2)
 
-        let body = new this.rigidBody(position, mass, inertia, area, density, restitution, isStatic, radius, 0, 0, null, classicPhysicsWorld.shapeType.circle)
+        let body = new this.RigidBody(position, mass, inertia, area, density, restitution, isStatic, radius, 0, 0, null, ClassicPhysicsWorld.shapeType.circle)
         return body
     }
     createBoxBody(position, width, height, restitution, density, isStatic) {
         let area = width * height;
-        let verticies = classicPhysics.createBoxVerticies(width, height)
+        let verticies = ClassicPhysics.createBoxVerticies(width, height)
 
         if (this.safeMode) {
-            if (area < classicPhysicsWorld.minBodySize) {
-                console.error(`Box area is too small! The min object area is '${classicPhysicsWorld.minBodySize}' metres spuared`)
-                console.warn("The above error can be fixed by turning off safemode of the classicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the classicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
+            if (area < ClassicPhysicsWorld.minBodySize) {
+                console.error(`Box area is too small! The min object area is '${ClassicPhysicsWorld.minBodySize}' metres spuared`)
+                console.warn("The above error can be fixed by turning off safemode of the ClassicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the ClassicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
                 return false
-            } else if (area > classicPhysicsWorld.maxBodySize) {
-                console.error(`Box area is too large! The nax object area is '${classicPhysicsWorld.maxBodySize}' metres spuared`)
-                console.warn("The above error can be fixed by turning off safemode of the classicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the classicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
+            } else if (area > ClassicPhysicsWorld.maxBodySize) {
+                console.error(`Box area is too large! The nax object area is '${ClassicPhysicsWorld.maxBodySize}' metres spuared`)
+                console.warn("The above error can be fixed by turning off safemode of the ClassicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the ClassicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
                 return false
             }
-            if (density < classicPhysicsWorld.minDensity) {
-                console.error(`Box density is too small! The min object area is '${classicPhysicsWorld.minDensity}'`)
-                console.warn("The above error can be fixed by turning off safemode of the classicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the classicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
+            if (density < ClassicPhysicsWorld.minDensity) {
+                console.error(`Box density is too small! The min object area is '${ClassicPhysicsWorld.minDensity}'`)
+                console.warn("The above error can be fixed by turning off safemode of the ClassicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the ClassicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
                 return false
-            } else if (density > classicPhysicsWorld.maxDensity) {
-                console.error(`Box density is too large! The nax object area is '${classicPhysicsWorld.maxDensity}'`)
-                console.warn("The above error can be fixed by turning off safemode of the classicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the classicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
+            } else if (density > ClassicPhysicsWorld.maxDensity) {
+                console.error(`Box density is too large! The nax object area is '${ClassicPhysicsWorld.maxDensity}'`)
+                console.warn("The above error can be fixed by turning off safemode of the ClassicPhysics instance i.e 'physics.safeMode = false' or by editing the minAndMaxx body size of the ClassicPhysicsWorld instance i.e 'world.maxBodySize' or 'world.minBodySize'")
                 return false
             }
         }
@@ -1987,46 +1448,47 @@ export class classicPhysics {
         let mass = area * density;
         let inertia = (1 / 12) * mass * ((width ** 2) + (height ** 2));
 
-        let body = new this.rigidBody(position, mass, inertia, area, density, restitution, isStatic, 0, width, height, verticies, classicPhysicsWorld.shapeType.box)
+        let body = new this.RigidBody(position, mass, inertia, area, density, restitution, isStatic, 0, width, height, verticies, ClassicPhysicsWorld.shapeType.box)
+        console.log("aabb tracking: ",body.aabb)
         return body
     }
     createPolygonBody(position, verticies, scaleX, scaleY, restitution, density, isStatic) {
         let verticiesCopy = verticies
-        let scaledVerticies = classicPhysics.scalaeVerticies(verticiesCopy, scaleX, scaleY)
-        let area = Math.abs(classicPhysics.calculatePolygonArea(scaledVerticies))
+        let scaledVerticies = ClassicPhysics.scalaeVerticies(verticiesCopy, scaleX, scaleY)
+        let area = Math.abs(ClassicPhysics.calculatePolygonArea(scaledVerticies))
 
         if (this.safeMode) {
-            if (area < classicPhysicsWorld.minBodySize) {
-                console.error(`Polygon density is too small! The min object area is '${classicPhysicsWorld.minBodySize}' metres spuared`)
+            if (area < ClassicPhysicsWorld.minBodySize) {
+                console.error(`Polygon density is too small! The min object area is '${ClassicPhysicsWorld.minBodySize}' metres spuared`)
                 return false
-            } else if (area > classicPhysicsWorld.maxBodySize) {
-                console.error(`Polygon density is too large! The nax object area is '${classicPhysicsWorld.maxBodySize}' metres spuared`)
+            } else if (area > ClassicPhysicsWorld.maxBodySize) {
+                console.error(`Polygon density is too large! The nax object area is '${ClassicPhysicsWorld.maxBodySize}' metres spuared`)
                 return false
             }
-            if (density < classicPhysicsWorld.minDensity) {
-                console.error(`Polygon density is too small! The min object area is '${classicPhysicsWorld.minDensity}'`)
+            if (density < ClassicPhysicsWorld.minDensity) {
+                console.error(`Polygon density is too small! The min object area is '${ClassicPhysicsWorld.minDensity}'`)
                 return false
-            } else if (density > classicPhysicsWorld.maxDensity) {
-                console.error(`Box density is too large! The nax object area is '${classicPhysicsWorld.maxDensity}'`)
+            } else if (density > ClassicPhysicsWorld.maxDensity) {
+                console.error(`Box density is too large! The nax object area is '${ClassicPhysicsWorld.maxDensity}'`)
                 return false
             }
         }
 
         restitution = clip(restitution, 0, 1);
         let mass = area * density;
-        let inertia = classicPhysics.calculatePolygonInertia(verticies, mass)
+        let inertia = ClassicPhysics.calculatePolygonInertia(verticies, mass)
 
 
-        let body = new this.rigidBody(position, mass, inertia, area, density, restitution, isStatic, 0, scaleX, scaleY, scaledVerticies, classicPhysicsWorld.shapeType.polygon)
+        let body = new this.RigidBody(position, mass, inertia, area, density, restitution, isStatic, 0, scaleX, scaleY, scaledVerticies, ClassicPhysicsWorld.shapeType.polygon)
         return body
     }
     createSpringJoint(bodyA, bodyB, length, k, dampingRatio, offsetA, offsetB) {
-        let joint = new this.joint(bodyA, bodyB, length, k, dampingRatio, offsetA, offsetB);
+        let joint = new this.Joint(bodyA, bodyB, length, k, dampingRatio, offsetA, offsetB);
         return joint
     }
 }
 
-export class classicAABB {
+export class ClassicAABB {
     constructor(minX, minY, maxX, maxY) {
         this.min = new vec2D(minX, minY);
         this.max = new vec2D(maxX, maxY);

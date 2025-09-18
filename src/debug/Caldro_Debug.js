@@ -8,11 +8,12 @@ const offCtx = offScreenCanvas.getContext("2d");
 
 /// size of the debug canvas
 let WIDTH = window.innerWidth;
-let HEIGHT = 150;
+let HEIGHT = window.innerHeight*0.2;
 let bgColor = "black"
 
 let resolution = 2
 
+let DEBUG_KEY = ""
 const MAX_FRAMETIME = fpsToDecimal(20)
 const MIN_FRAMETIME = 0
 const FPS_30 = fpsToDecimal(30) // around 0.033 ms
@@ -20,8 +21,13 @@ const FPS_60 = fpsToDecimal(60) // around 0.016 ms
 
 let MAX_MEMORY = 2
 
+export function log(message) {
+    console.log(message)
+}
+
 export const DEBUGGER = {
     active: true,
+    visible: true,
     time: {
         updateTime: 0,
         renderTime: 0,
@@ -30,6 +36,10 @@ export const DEBUGGER = {
     },
     memory: {
 
+    },
+    setVisibility(visibility) {
+        DEBUGGER.visible = visibility
+        canvas.style.display = DEBUGGER.visible ? "block" : "none"
     },
     UPDATE(updateTime, renderTime) {
         let now = performance.now() / 1000;
@@ -67,6 +77,48 @@ function UPDATE() {
 
 }
 
+export function trackObject(obj) {
+    const creationTime = {
+        date: new Date(),
+        highPrecision: performance.now(),
+    };
+
+    console.log(`[CREATE] Object created at ${creationTime.date.toISOString()} (${creationTime.highPrecision.toFixed(3)}ms since page load)`);
+
+    return new Proxy(obj, {
+        get(target, prop, receiver) {
+            const accessTime = {
+                date: new Date(),
+                highPrecision: performance.now(),
+            };
+            const stackTrace = new Error().stack.split("\n").slice(2).join("\n");
+
+            console.log(`[GET] Property "${String(prop)}" accessed at ${accessTime.date.toISOString()} (${accessTime.highPrecision.toFixed(3)}ms)\nCall Stack:\n${stackTrace}`);
+            return Reflect.get(target, prop, receiver);
+        },
+        set(target, prop, value, receiver) {
+            const modificationTime = {
+                date: new Date(),
+                highPrecision: performance.now(),
+            };
+            const stackTrace = new Error().stack.split("\n").slice(2).join("\n");
+
+            console.log(`[SET] Property "${String(prop)}" set to "${value}" at ${modificationTime.date.toISOString()} (${modificationTime.highPrecision.toFixed(3)}ms)\nCall Stack:\n${stackTrace}`);
+            return Reflect.set(target, prop, value, receiver);
+        },
+        deleteProperty(target, prop) {
+            const deletionTime = {
+                date: new Date(),
+                highPrecision: performance.now(),
+            };
+            const stackTrace = new Error().stack.split("\n").slice(2).join("\n");
+
+            console.log(`[DELETE] Property "${String(prop)}" deleted at ${deletionTime.date.toISOString()} (${deletionTime.highPrecision.toFixed(3)}ms)\nCall Stack:\n${stackTrace}`);
+            return Reflect.deleteProperty(target, prop);
+        },
+    });
+}
+
 
 function RENDER() {
     ctx.fillStyle = bgColor;
@@ -75,8 +127,8 @@ function RENDER() {
     ctx.fillStyle = bgColor;
     ctx.fillRect(canvas.width - resolution, 0, resolution, HEIGHT)
 
-   renderMSDelayTimeline();
-   renderMemoryTimeline();
+    renderMSDelayTimeline();
+    renderMemoryTimeline();
 
     /// move the drawwing currently on the canvas to one resolution worht of pixeld to the left
     smearCanvas()
@@ -108,7 +160,7 @@ function renderMSDelayTimeline() {
     ctx.fillStyle = "orange"
     ctx.fillRect(canvas.width - resolution, HEIGHT - browserDelayHeight - updateTimeHeight - renderTimeHeight, resolution, browserDelayHeight)
 }
-function renderMemoryTimeline(){
+function renderMemoryTimeline() {
     let memoryUsage = DEBUGGER.getMemoryUsage();
     if (memoryUsage) {
         /// draw memory
@@ -132,11 +184,17 @@ function smearCanvas() {
     ctx.drawImage(offScreenCanvas, -resolution, 0)
 }
 
+canvas.style.display = "block"
+window.addEventListener("keydown", (event) => {
+    if ((event.key == DEBUG_KEY)) {
+        DEBUGGER.setVisibility(!DEBUGGER.visible)
+    }
+})
+window.dc = canvas
 
 
-
-
-export function SETUP_DEBUG(parentElement = document.body) {
+export function SETUP_DEBUG(debugToggleKey = "d", parentElement = document.body) {
+    DEBUG_KEY = debugToggleKey
     setupCanvas();
     parentElement.appendChild(canvas)
     initialize();
@@ -172,6 +230,8 @@ function getHeightFromTimeStamp(timeInMS) {
 function fpsToDecimal(fps = 60) {
     return (1 / fps)
 }
+
+
 
 function resizeCanvas() {
     canvas.width = WIDTH = window.innerWidth;

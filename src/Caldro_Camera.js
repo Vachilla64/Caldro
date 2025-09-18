@@ -1,15 +1,17 @@
 import { c } from "./Caldro_Canvas.js";
-import { classicAABB } from "./Caldro_ClassicPhysics.js";
+import { ClassicAABB } from "./Caldro_ClassicPhysics.js";
 import { Point2D } from "./Caldro_Physics.js";
 import Caldro from "./Caldro.js";
 import { clip, cosine, degToRad, sine } from "./Caldro_Math.js";
-import { Lvector2D, vec2D, vecMath } from "./Caldro_Vectors_and_Matrices.js";
+import { Lvector2D, vec2D, VecMath } from "./Caldro_Vectors_and_Matrices.js";
 import { NULLFUNCTION, ORIGIN } from "./Caldro_Utility_Constants.js";
 import { angleBetweenPoints, castRay } from "./Caldro_Physics_Utilities.js";
-import { dist2D, doTask, generateRandomId, getConstructorName, getRandomPointIn, place } from "./Caldro_Utility_Functions.js";
+import { dist2D, doTask, generateRandomId, getConstructorName, getRandomPointIn, place, randomNumber } from "./Caldro_Utility_Functions.js";
 import { alpha, circle, drawRay, Rect, stRect, stTriangle, triangle } from "./Caldro_Rendering.js";
 import { cordShow } from "./Caldro_Renderers.js";
 import { loadFromLocalStorage, saveToLocalStorage } from "./Caldro_LocalStorage.js";
+import { keyboard, onMouseScrollDown, onMouseScrollUp } from "./Caldro_Controls.js";
+import { getCanvas } from "./Caldro_Canvas.js";
 
 // [SID]
 export class Camera {
@@ -18,7 +20,7 @@ export class Camera {
 		this.y = 0;
 		this.width = canvas.width;
 		this.height = canvas.height;
-		this.aabb = new classicAABB(this.x - this.width * 0.5, this.y - this.height * 0.5, this.x + this.width * 0.5, this.y + this.height * 0.5)
+		this.aabb = new ClassicAABB(this.x - this.width * 0.5, this.y - this.height * 0.5, this.x + this.width * 0.5, this.y + this.height * 0.5)
 		this.inWorldBounds = {
 			x: this.x,
 			y: this.y,
@@ -26,16 +28,21 @@ export class Camera {
 			height: this.height,
 		}
 		this.zoom = new vec2D(1, 1); // a vector specifiying the x and y zoom levels
-		this.canvas = Caldro.renderer.canvas // storing the cnavas for reference 
-		this.context = Caldro.renderer.canvas.getContext('2d') // storing the context for reference
+		this.canvas = getCanvas() // storing the cnavas for reference 
+		this.context = getCanvas().getContext('2d') // storing the context for reference
 		this.capturing = false; // will be true inbeween start() and end() calls of the camear
-		this.autoUpdateAssignedCanvas = false; // if true, will update the refernce canvas to the current Caldro main canvas
+		this.autoUpdateAssignedCanvas = true; // if true, will update the refernce canvas to the current Caldro main canvas
 		this.angle = 0; // angle in degrees
 		this.frame = 0; // 0 means nothing rendered
 		this.translationX = this.camtranslationX = 0;
 		this.translationY = this.camtranslationY = 0;
 		this.pointer = new Point2D();
 
+		this.offsetX = 0;
+		this.offsetY = 0;
+		this.shakeOffsetX = 0;
+		this.shakeOffsetY = 0;
+		this.shakeDamping = 1.9;
 	}
 
 	getAABB() {
@@ -65,8 +72,8 @@ export class Camera {
 		this.width = this.canvas.width * (1 / this.zoom.x);
 		this.height = this.canvas.height * (1 / this.zoom.y);
 		if (targetPoint) {
-			let difference = vecMath.subtract(this, targetPoint)
-			vecMath.subtract(this, vecMath.divideByVector(difference, this.zoom), true)
+			let difference = VecMath.subtract(this, targetPoint)
+			VecMath.subtract(this, VecMath.divideByVector(difference, this.zoom), true)
 		}
 	}
 
@@ -104,6 +111,7 @@ export class Camera {
 					place(this.zoom, posInfo.zoom)
 					this.angle = parseFloat(posInfo.angle)
 				}
+				posInfo =  null
 			}
 		}
 		this.persistContinuous = () => {
@@ -155,11 +163,15 @@ export class Camera {
 	start() {
 		this.persistStart()
 		this.clipZoom(null, 1, 20)
-		if (this.autoUpdateAssignedCanvas) this.setCanvas(Caldro.renderer.canvas);
+		if (this.autoUpdateAssignedCanvas) this.setCanvas(getCanvas());
 		this.capturing = true;
 		this.pre_shot();
 
 		let cc = this.context
+
+		/// ofsets
+		let actualOffsetX = this.offsetX + this.shakeOffsetX;
+		let actualOffsetY = this.offsetY + this.shakeOffsetY;
 
 		// adjust camera width and height accounting for zoom
 		this.width = this.canvas.width * (1 / this.zoom.x);
@@ -175,11 +187,16 @@ export class Camera {
 		// scale the canvas for zoom. I apply this first cos the other transformations already take the scale into considerations throught the width and height of the camera
 		cc.scale(this.zoom.x, this.zoom.y)
 		// translate the canvas origin to the camera center but at 0, 0
-		cc.translate(this.width / 2, this.height / 2)
+		cc.translate(
+			(this.width / 2) + actualOffsetX
+			,(this.height / 2) + actualOffsetY
+		)
 		// rotate the canvas here so that eveything takes on this rotation properly
 		cc.rotate(-radAngle);
 		// translate the canavs to the x and y of the camera, since translates stack, this already takes into account the center translation from ealier
 		cc.translate(-this.x, -this.y)
+
+	
 
 		// updating the frame counter here so the callback can access the correct frame number
 		++this.frame;
@@ -198,8 +215,15 @@ export class Camera {
 		let cc = this.context
 		cc.restore();
 		this.capturing = false
+		this.shakeOffsetX += (-this.shakeOffsetX * this.shakeDamping)
+		this.shakeOffsetY += (-this.shakeOffsetY * this.shakeDamping)
 		this.post_shot();
 	};
+
+	shake(maxOffsetX, maxOffsetY = 0) {
+		this.shakeOffsetX = randomNumber(-maxOffsetX, maxOffsetX)
+		this.shakeOffsetY = randomNumber(-maxOffsetY, maxOffsetY)
+	}
 
 	mimicCamera(referrence_camera = this) {
 		this.x = referrence_camera.x;
@@ -211,6 +235,16 @@ export class Camera {
 	};
 }
 
+
+export const CAMERA = new Camera(c);
+export const DEV_CAMERA = new Camera(c);
+export let CURRENT_CAMERA = CAMERA;
+export function setCurrentCamera(camera) {
+	if(!camera) return
+	CURRENT_CAMERA = camera
+}
+
+
 /// acting as a backup, will remove soon
 // [SID]
 export class Cimera {
@@ -219,7 +253,7 @@ export class Cimera {
 		this.y = 0;
 		this.width = canvas.width;
 		this.height = canvas.height;
-		this.aabb = new classicAABB(this.x - this.width * 0.5, this.y - this.height * 0.5, this.x + this.width * 0.5, this.y + this.height * 0.5)
+		this.aabb = new ClassicAABB(this.x - this.width * 0.5, this.y - this.height * 0.5, this.x + this.width * 0.5, this.y + this.height * 0.5)
 		this.inWorldBounds = {
 			x: this.x,
 			y: this.y,
@@ -257,8 +291,8 @@ export class Cimera {
 			},
 		}
 		this.zoom = 1;
-		this.canvas = Caldro.renderer.canvas
-		this.context = Caldro.renderer.context
+		this.canvas = getCanvas()
+		this.context = this.canvas.getContext("2d")
 		this.zoomSpeed = 3;
 		this.zoomRatio = 446;
 		this.adjustedZoom = 1;
@@ -454,7 +488,7 @@ export class Cimera {
 
 	start(deltatime = Caldro.time.deltatime) {
 		this.persistStart()
-		if (this.autoUpdateAssignedCanvas) this.setCanvas(Caldro.renderer.canvas);
+		if (this.autoUpdateAssignedCanvas) this.setCanvas(getCanvas());
 		this.pre_shot();
 
 		if (this.target.active) {
@@ -488,7 +522,7 @@ export class Cimera {
 
 		// distance from 0.0 to the top left of the canvas (in screen space)
 		let topLeftToCenterLength = dist2D(ORIGIN, new vec2D(this.width / 2, this.height / 2));
-		// let topLeftToCenterLength = vecMath.distance(ORIGIN, new vec2D(this.width / 2, this.height / 2));
+		// let topLeftToCenterLength = VecMath.distance(ORIGIN, new vec2D(this.width / 2, this.height / 2));
 
 		this.camtranslationX = -((this.x + offsetX) - ((this.canvas.width / 2) * 1 / this.adjustedZoom))
 		this.camtranslationY = -((this.y + offsetY) - ((this.canvas.height / 2) * 1 / this.adjustedZoom))
@@ -532,6 +566,7 @@ export class Cimera {
 		let lastOFfsetReset = performance.now() - this.lastOFfsetReset;
 		if (this.shakeOffsetResetFrequency < lastOFfsetReset) {
 			this.lastOFfsetReset = performance.now();
+			
 			this.shakeOffsetX += (-this.shakeOffsetX * 1.9)
 			this.shakeOffsetY += (-this.shakeOffsetY * 1.9)
 		}
@@ -568,31 +603,61 @@ export class Cimera {
 // current Cammra is from the game (camera beeing seen),
 // camera is the caemra to make a devcam
 // otherCames is the game camea
-export function setupDevcamControls(currentCamera, devCamera, otherCamera, keyStateHandler, speed = 200, zoomSpeed = 3) {
-	keyStateHandler.addKey(0, "m", NULLFUNCTION, function () {
-		devCamera.mimicCamera(otherCamera)
+export function setupDevcamControls(devCamera, otherCamera, speed = 300, zoomSpeed = 0.5) {
+
+	keyboard.onKeyHold("m", () => {
+		if(typeof otherCamera == "function")
+			devCamera.mimicCamera(otherCamera())
+		else
+			devCamera.mimicCamera(otherCamera)
 	})
-	keyStateHandler.addKey(0, "u", NULLFUNCTION, function () {
+
+	keyboard.onKeyHold("u", () => {
 		devCamera.addZoom(zoomSpeed)
 	})
 
-	keyStateHandler.addKey(0, "o", NULLFUNCTION, function () {
-		devCamera.addZoom(-zoomSpeed)
+	keyboard.onKeyHold("o", () => {
+		devCamera.addZoom(-zoomSpeed) 
 	})
 
-	keyStateHandler.addKey(0, "i", NULLFUNCTION, function () {
-		devCamera.y -= speed * (1 / devCamera.zoom.y) * Caldro.time.deltatime;
+	keyboard.onKeyHold("i", () => {
+		if(keyboard.isBeingPressed("shift")) return;
+		devCamera.y -= speed * (1 / devCamera.zoom.y) * Caldro.time.deltatime
 	})
 
-	keyStateHandler.addKey(0, "j", NULLFUNCTION, function () {
-		devCamera.x -= speed * (1 / devCamera.zoom.x) * Caldro.time.deltatime;
+	keyboard.onKeyHold("j", () => {
+		if(keyboard.isBeingPressed("shift")) return;
+		devCamera.x -= speed * (1 / devCamera.zoom.x) * Caldro.time.deltatime
 	})
 
-	keyStateHandler.addKey(0, "k", NULLFUNCTION, function () {
-		devCamera.y += speed * (1 / devCamera.zoom.y) * Caldro.time.deltatime;
+	keyboard.onKeyHold("k", () => {
+		if(keyboard.isBeingPressed("shift")) return;
+		devCamera.y += speed * (1 / devCamera.zoom.y) * Caldro.time.deltatime
 	})
 
-	keyStateHandler.addKey(0, "l", NULLFUNCTION, function () {
-		devCamera.x += speed * (1 / devCamera.zoom.x) * Caldro.time.deltatime;
+	keyboard.onKeyHold("l", () => {
+		if(keyboard.isBeingPressed("shift")) return;
+		devCamera.x += speed * (1 / devCamera.zoom.x) * Caldro.time.deltatime
+	})
+
+	onMouseScrollUp(()=>{
+		if (keyboard.isBeingPressed("alt"))
+            devCamera.angle -= 10
+        else if (keyboard.isBeingPressed("shift"))
+            devCamera.x -= speed * (1 / devCamera.zoom.x)
+        else if (keyboard.isBeingPressed("ctrl"))
+            devCamera.addZoom(1)
+        else
+            devCamera.y -= speed * (1 / devCamera.zoom.y)
+	})
+	onMouseScrollDown(()=>{
+		if (keyboard.isBeingPressed("alt"))
+            devCamera.angle += 10
+        else if (keyboard.isBeingPressed("shift"))
+            devCamera.x += speed * (1 / devCamera.zoom.x)
+        else if (keyboard.isBeingPressed("ctrl"))
+            devCamera.addZoom(-1)
+        else
+            devCamera.y += speed * (1 / devCamera.zoom.y)
 	})
 }

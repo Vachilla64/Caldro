@@ -888,6 +888,8 @@ export class WAAPIAudioManager {
 			gainNode.connect(this.nodeGraphStart)
 			osc.start(0)
 			osc.stop(audioCtx.currentTime + length)
+		} else {
+			WAAPIAudioManager.error("Cannot Play Oscilation, WAAPIAudioManager has not been initalized")
 		}
 	}
 }

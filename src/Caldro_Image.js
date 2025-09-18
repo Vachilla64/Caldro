@@ -1,8 +1,10 @@
-import Caldro from "./Caldro.js";
 import { degToRad } from "./Caldro_Math.js";
+import { getCanvas } from "./Caldro_Canvas.js";
+
+
 
 export function drawImage(img, x, y, width, height, centralized = false, angle = 0, flippedX = false, flippedY = false) {
-	let context = Caldro.renderer.context;
+	let context = getCanvas().getContext("2d");
 	if (!centralized) {
 		context.save();
 		context.rotate(degToRad(angle));
@@ -20,7 +22,7 @@ export function drawImage(img, x, y, width, height, centralized = false, angle =
 }
 
 export function drawImagePortion(img, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height, centralized = false, angle = 0, flippedX = false, flippedY = false) {
-	let context = Caldro.renderer.context;
+	let context = getCanvas().getContext("2d");
 	if (!centralized) {
 		context.save();
 		context.rotate(degToRad(angle));
@@ -38,7 +40,7 @@ export function drawImagePortion(img, sourceX, sourceY, sourceWidth, sourceHeigh
 }
 
 // rendering classes
-export class imageHandler {
+export class ImageHandler {
 	constructor() {
 		this.images = new Array();
 		this.addImages = 0;
@@ -82,7 +84,7 @@ export class imageHandler {
 		if (!height) {
 			height = img.height
 		}
-		let context = Caldro.renderer.context;
+		let context = getCanvas().getContext("2d");
 		if (centralized) {
 			context.save();
 			context.translate(x, y);
@@ -97,7 +99,7 @@ export class imageHandler {
 	onload(){};
 }
 
-export class spriteSheetManager {
+export class SpriteSheetManager {
 	constructor(spritesheet, spriteSheetWidth = 1280, spriteSheetHeight = 1280) {
 		if (spritesheet) {
 			this.initialize(spritesheet, spriteSheetWidth, spriteSheetHeight)

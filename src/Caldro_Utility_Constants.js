@@ -9,7 +9,7 @@ export const COOLBLUE = "#2776EA"
 export const CALDGREEN = "rgba(20, 60, 20, 1)"
 
 export const ORIGIN = new vec2D(0, 0);
-export const INFINITY = Infinity;
+export const INFINITY = Number.MAX_SAFE_INTEGER;
 export const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
 export const NUMBERS = "0123456789".split('')
 

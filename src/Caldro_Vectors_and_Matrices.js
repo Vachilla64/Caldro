@@ -1,5 +1,8 @@
 // Vectors_and_Matricies
-import { dist2D } from "./Caldro_Utility_Functions.js"
+// This file contains the Vector and Matrix classes, as well as some utility functions for working with them.
+
+
+
 
 
 // Light Vectors which wil only perform operations on themselves
@@ -44,7 +47,7 @@ export class Lvector2D {
         return (this.x ** 2 + this.y ** 2)
     }
     normalize(sourceVector = originVector) {
-        let mag = dist2D(this, sourceVector);
+        let mag = this.length(this, sourceVector);
         mag = mag == 0 ? 1 : mag;
         this.x /= mag;
         this.y /= mag;
@@ -62,7 +65,7 @@ export function vec2D(x, y) {
     }
 }
 
-export class Lvector3D {
+class Lvector3D {
     constructor(x, y, z) {
         this.x = x;
         this.y = y;
@@ -71,40 +74,40 @@ export class Lvector3D {
 }
 
 // regular vectors. Their methods will return noe vectors
-export class vector2D {
-    static zero = new vector2D(0, 0)
+export class Vector2D {
+    static zero = new Vector2D(0, 0)
     constructor(x, y) {
         this.x = x;
         this.y = y;
     }
     normalize(sourceVector = originVector) {
-        let mag = dist2D(this, sourceVector);
+        let mag = this.length(sourceVector);
         mag = mag == 0 ? 1 : mag;
-        return new vector2D(this.x /= mag, this.y /= mag)
+        return new Vector2D(this.x /= mag, this.y /= mag)
     }
-    magnitude(sourceVector = originVector) {
-        return dist2D(this, sourceVector)
+    length() {
+        return Math.sqrt(this.x ** 2 + this.y ** 2)
     }
     subtract(vector = originVector) {
-        return new vector2D(this.x - vector.x, this.y - vector.y)
+        return new Vector2D(this.x - vector.x, this.y - vector.y)
     }
     add(vector = originVector) {
-        return new vector2D(this.x + vector.x, this.y + vector.y)
+        return new Vector2D(this.x + vector.x, this.y + vector.y)
     }
     multiply(number = 1) {
-        return new vector2D(this.x *= number, this.y *= number)
+        return new Vector2D(this.x *= number, this.y *= number)
     }
     divide(number = 1) {
         if (number) {
-            return new vector2D(this.x /= number, this.y /= number)
+            return new Vector2D(this.x /= number, this.y /= number)
         }
         console.error("vector is being divided by an unsusual variable: " + number)
     }
     normal() {
-        return new vector2D(-this.y, this.x);
+        return new Vector2D(-this.y, this.x);
     }
     invert() {
-        return new vector2D(-this.x, -this.y)
+        return new Vector2D(-this.x, -this.y)
     }
     isSameAs(vector) {
         return (this.x == vector.x && this.y == vector.y)
@@ -112,7 +115,7 @@ export class vector2D {
 }
 
 
-export const vecMath = {
+export const VecMath = {
     normalize(vector, preserveReferences = false, sourceVector = originVector) {
         let mag = this.distance(vector, sourceVector);
         mag = mag == 0 ? 1 : mag;
@@ -160,7 +163,14 @@ export const vecMath = {
         if (!marginOfError) {
             return (vector1.x == vector2.x && vector1.y == vector2.y)
         }
-        return vecMath.distanceSquared(vector1, vector2) < marginOfError ** 2;
+        return VecMath.distanceSquared(vector1, vector2) < marginOfError ** 2;
+    },
+
+    midPoint(vector1, vector2) {
+        return new vec2D(
+            (vector1.x + vector2.x) * 0.5,
+            (vector1.y + vector2.y) * 0.5
+        )
     },
 
     add(vector1, vector2, preserveReferences = false) {
@@ -218,7 +228,7 @@ export const vecMath = {
     copy(vector) {
         return new vec2D(vector.x, vector.y);
     },
-    clone(vector1, vector2){
+    clone(vector1, vector2) {
         vector1.x = vector2.x
         vector1.y = vector2.y
     },
@@ -236,12 +246,12 @@ export const vecMath = {
     croos(vector1, vector2) {
         return vector1.x * vector2.y - vector1.y * vector2.x;
     },
-    zero(){
+    zero() {
         return new vec2D(0, 0)
     }
 }
 
-export const originVector = new vector2D(0, 0)
+export const originVector = new Vector2D(0, 0)
 
 export function array2D(rows = 2, columns = 2, initialValues = 0) {
     let arr2D = new Array();

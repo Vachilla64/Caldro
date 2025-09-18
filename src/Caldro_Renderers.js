@@ -3,6 +3,9 @@ import { clip, ceilToNearestMutliple, scaleTo, floorToNearestMutliple } from "./
 import { Rect, txt, font, alpha, rect, line, circle } from "./Caldro_Rendering.js";
 import { dist2D, doTask, place, snapCoordinatesToGrid } from "./Caldro_Utility_Functions.js";
 import { vec2D } from "./Caldro_Vectors_and_Matrices.js";
+import { log } from "./debug/Caldro_Debug.js";
+import { limit } from "./Caldro_Utility_Functions.js";
+import { stRect } from "./Caldro_Rendering.js";
 
 export function cordShow(who, fill = 'green', w = 300, h = 2, showCordValue = false, camera = null) {
   if (who != undefined) {
@@ -21,16 +24,16 @@ export function cordShow(who, fill = 'green', w = 300, h = 2, showCordValue = fa
 }
 
 export function meter(x, y, width, height, value = 50, lowest_limit = 0, highest_limit = 100, colors = ['#22ff12', 'orange', 'red'], backgroundColor = "transparent", steps = 100) {
-  let color = colors[0]
-  steps = width / steps
-  limit(value, lowest_limit, highest_limit);
-  let percent = (value / highest_limit) * 100
-  let valueLenght = limit(steps * percent, 0, width)
+  // steps = width / steps
+  value = limit(value, lowest_limit, highest_limit);
+  let percent = (value / (highest_limit-lowest_limit)) 
+  let valueLenght = width * percent
+  // let valueLenght = limit(steps * percent, 0, width)
   if (backgroundColor != "transparent") {
     rect(x - width / 2, y - height / 2, width, height, backgroundColor)
   }
-  rect(x - width / 2, y - height / 2, valueLenght, height, color)
-  stRect(x, y, width, height, 'white', 2)
+  rect(x - width / 2, y - height / 2, valueLenght, height, colors)
+  stRect(x, y, width, height, backgroundColor, 1)
 }
 
 export function checkBoard(x, y, width, height, rows = 8, columns = 8, color1 = "white", color2 = "black") {
@@ -57,7 +60,7 @@ export function checkBoard(x, y, width, height, rows = 8, columns = 8, color1 = 
 export function drawCoordinateGraph(camera, gridSize = 10, color = "white", subdivisions = 5, dynamic = false, showCoordinates = true, showCCameraPointerCoordinates = true, snapMouse = true) {
   const { x, y, width, height } = camera;
   const ctx = camera.context
-  const zoom = camera.zoom.x
+  const zoom =  camera.zoom.x
 
   let subdivisionCounter = 0
 
@@ -87,7 +90,7 @@ export function drawCoordinateGraph(camera, gridSize = 10, color = "white", subd
   ctx.save();
 
 
-  circle(0, 0, 10 * (1 / zoom), color)
+  circle(0, 0, 2 * (1 / zoom), color)
   /// draw main axis cross
   const mainAxisThickness = 4 / zoom
 

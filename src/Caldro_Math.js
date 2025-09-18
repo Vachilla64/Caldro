@@ -1,4 +1,7 @@
-"use strict"; // Math
+"use strict";
+import { limit } from "./Caldro_Utility_Functions";
+
+ // Math
 export const ROOT_1_2 = Math.sqrt(0.5)
 export const ROOT_2 = Math.sqrt(2)
 export const ROOT_3 = Math.sqrt(3)
@@ -45,7 +48,10 @@ export function toDecimalPlace(num, decimalPlace = 0) {
 	return parseFloat(num.toFixed(decimalPlace))
 }
 
-export function scaleTo(number = 5, numberMin = 0, numberMax = 10, scaleMin = 0, scaleMax = 1) {
+export function scaleTo(number = 5, numberMin = 0, numberMax = 10, scaleMin = 0, scaleMax = 1, limitNumberToMinAndMax = false) {
+	if(limitNumberToMinAndMax){
+		number = limit(number, numberMin, numberMax)
+	}
 	let percentage = (number - numberMin) / (numberMax - numberMin)
 	return interpolate(percentage, scaleMin, scaleMax)
 }

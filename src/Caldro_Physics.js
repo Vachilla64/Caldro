@@ -15,7 +15,7 @@ export class Point3D {
     }
 }
 
-export class dynamicPoint2D {
+export class DynamicPoint2D {
 	constructor(x = 0, y = 0, data) {
 		this.x = x;
 		this.y = y;
@@ -35,7 +35,7 @@ export class dynamicPoint2D {
 	callback() { };
 }
 
-export class Collider2D extends dynamicPoint2D {
+export class Collider2D extends DynamicPoint2D {
 	constructor() {
 		super();
 		this.isTrigger = false;
@@ -49,7 +49,7 @@ export class Collider2D extends dynamicPoint2D {
 }
 
 //Define Bodies
-export class boxCollider2D extends Collider2D {
+export class BoxCollider2D extends Collider2D {
 	constructor(x = 0, y = 0, width = 0.5, height = 0.5) {
 		super()
 		this.x = this.oldX = x;
@@ -67,7 +67,7 @@ export class boxCollider2D extends Collider2D {
 	}
 }
 
-export class circleCollider2D {
+export class CircleCollider2D {
 	constructor(x = 0, y = 0, radius = 0.5) {
 		this.x = x;
 		this.y = y;
@@ -78,7 +78,7 @@ export class circleCollider2D {
 	}
 }
 
-class polygonCollider2D {
+class PolygonCollider2D {
 	constructor(x, y, size = 1, model = new Array()) {
 		this.x = x;
 		this.y = y;
@@ -97,7 +97,7 @@ class polygonCollider2D {
 }
 
 // [SID]
-export class colliderResolutionEngine2D {
+export class ColliderResolutionEngine2D {
 	constructor() {
 		this.bodies = new Array();
 		this.renderingStyle = "stroke";
@@ -331,7 +331,7 @@ export class colliderResolutionEngine2D {
 
 
 // [SID] [NF]
-export class verletPhysicsEngine {
+export class VerletPhysicsEngine {
 	constructor() {
 		this.bodies = new Array();
 		this.points = new Array();
@@ -599,6 +599,7 @@ export class verletPhysicsEngine {
 	}
 }
 
+/// the idea of this was an optimization where each point knows its angle ralative to the parent polygon, to save extra claculations, but no nooed
 
 // [SID] [NU]
 class polygonPoint2D {

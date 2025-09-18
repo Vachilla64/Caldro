@@ -47,6 +47,8 @@ function cloneObjectPreserveDestination(object, objectToCopy) {
                 // else
                 // console.log("Couldnt clone: ", getConstructorName(value), "\n", value, "\n\n not an object or array")
 
+                /// we have nowe given it a blank object of that type, 
+                /// now rund the code again, and the bottom code wil be execute
                 cloneObjectPreserveDestination(object[param], value)
 
             /// if this clone already has this specific parameter
@@ -58,11 +60,11 @@ function cloneObjectPreserveDestination(object, objectToCopy) {
                     // object[param] = value
                     continue;
                 }
+
                 /// if the value (typeof object) is not an array but a pure object type
                 if (!(typeof value.__proto__.length == "number")) {
                     cloneObjectPreserveDestination(object[param], value)
                 } else {
-                    // console.log(value)
                     object[param] = new Array()
                     for (let i = 0; i < value.length; ++i) {
                         object[param][i] = {}
@@ -73,11 +75,13 @@ function cloneObjectPreserveDestination(object, objectToCopy) {
 
         } else {
              /// this is a primitve so just copy over like normal
-            // console.log(param, value)
             object[param] = value
         }
     }
-    // object.__proto__ = objectToCopy.__proto__
+
+    if(!object || !objectToCopy) return
+    if(objectToCopy.__proto__)
+    object.__proto__ = objectToCopy.__proto__
 }
 
 function roughSizeOfObject(object) {

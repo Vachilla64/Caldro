@@ -440,7 +440,7 @@ export const keyboard = {
 		return found
 	},
 	
-	
+		
 	keyDownEvent(event) {
 		let key = this.parseKey(event.key)
 		if (this.heldDownKeys.includes(key)) return;

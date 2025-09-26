@@ -11,7 +11,7 @@ import { keyboard } from "./Caldro_Controls.js";
 import { RigidBody } from "./physics/Caldro_RigidBody.js";
 import { CollisionManifold, Collisions } from "./physics/Caldro_Collisions.js";
 import { EventManager } from "./Caldro_EventManager.js";
-import { ScriptManager } from "./entitiy/Caldro_ScriptMangeer.js";
+import { ScriptManager } from "./ecs/Caldro_ScriptMangeer.js";
 
 function removeBodiesFromWorld(world) {
     world.bodies = world.bodies.filter((body) => {

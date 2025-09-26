@@ -1,6 +1,6 @@
 var NextEntityID = 0
 
-class ECS {
+export class ECS {
     constructor() {
         /// this is an Array of IDs
         this.entities = new Array();
@@ -21,6 +21,14 @@ class ECS {
     }
 }
 
+
+
+class Archetype {
+    constructor(components = []) {
+        this.key = components
+        this.componentData = new Array(components.length)
+    }
+}
 
 export class ComponentArray {
     constructor(type) {

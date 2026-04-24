@@ -1,33 +1,88 @@
-var NextEntityID = 0
+let newEntityID = 0;
+
+// const componentTypeID  
 
 export class ECS {
     constructor() {
-        /// this is an Array of IDs
-        this.entities = new Array();
+        this.archetypes = {}
+        this.componentTypes = [
+            'transform',
+            "rigidbody",
 
-        /// object of all component Arrays, key is component type
-        this.conponentArrays = {}
+            'shape',
+            'sprite',
 
-        /// groups that make entity lookups faster
-        this.entityGroups = {}
+            'circle',
+            'box',
+            'polygon',
+        ]
+        /// sorting array to have a predictabole order to components
+        this.componentTypes.sort()
     }
-
+    
     createEntity() {
-        return ++NextEntityID;
+        return ++newEntityID;
     }
+    
+    updateComponentTypes(newComponents){
+        for(let componentType of newComponents){
+            if (typeof componentType == "string")
+                this.componentTypes.push(componentType.toLocaleLowerCase())
+            else 
+                console.error("Component Type must be a lowercase string")
+        }
+        this.componentTypes.sort()
+    }
+
+
 
     addComponentToEntity(entity, component){
-        
+        /// check if there is an exsisting archetype for this entity
+        const entityArchetype = this.getEntityArchetype(entity)
+        if(!entityArchetype){
+
+        }
+
+
+        let updatedComponentsList = Array.from(entityArchetype.componentsKey)
+        updatedComponentsList.push(component)
+    }
+
+    getEntityArchetype(entity){
+        let entitiyArchetype = null
+        for(let archetype in this.archetypes){
+            if(archetype.entities.includes[entity]){
+                entitiyArchetype = archetype
+                break
+            }
+        }
+        return entitiyArchetype;
+    }
+
+    createNewEntityArchetype(entity, compMap){
+        const newArchetype = new Archetype(compMap)
+        addEntityToArchetype(entity, components)
     }
 }
 
+const archetypeManager = {
+    addArchtype(archetype){
 
+    }
+}
 
 class Archetype {
-    constructor(components = []) {
-        this.key = components
-        this.componentData = new Array(components.length)
+    constructor(signature = []) {
+        this.componentData = {}
+        this.entities = []
+        this.signature = signature;
+        this.queryCacheUpdateRequired = true;
     }
+}
+
+function addEntityToArchetype(entity, archetype){
+    archetype.entities.push(entity)
+    archetype.componentData.push()
 }
 
 export class ComponentArray {

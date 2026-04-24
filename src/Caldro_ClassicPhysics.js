@@ -255,7 +255,7 @@ export class ClassicPhysicsWorld {
         let found = false
         let physicsWorld = this
         this.bodies = this.bodies.filter(function (body) {
-            if (strict ? (body.tag.includes(tag)) : (body.tags.includes(tag))) {
+            if (strict ? (body.tags.includes(tag)) : (body.tags.includes(tag))) {
                 // if (strict ? (body.tag === tag) : (body.tags.includes(tag))) {
                 found = true;
                 // body.onRemove(); body.event
@@ -263,7 +263,6 @@ export class ClassicPhysicsWorld {
                     behaviour.onRemove(body);
                 })
                 physicsWorld.collisionTracking.deleteBodyTrackers(body)
-                this.onRemoveBody(body)
                 return false
             }
             return true;

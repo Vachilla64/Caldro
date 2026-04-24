@@ -2280,7 +2280,7 @@ class classicPhysics {
                 this.lockedAngle = false;
                 this.gravity = true;
                 this.inCollision = false;
-                this.tag = "";
+                this.tag = [];
                 this.ID = generateRandomId();
 
                 this.shapeType = shapeType;
